@@ -9,7 +9,7 @@ step() { STEPS+=("$1|$2|$3|$4"); }
 TMP_FILES=()
 TMP_DIRS=()
 cleanup() {
-  music_stop
+  command -v music_stop >/dev/null 2>&1 && music_stop
   [[ -n "${SUDO_KEEP:-}" ]] && kill "$SUDO_KEEP" 2>/dev/null
   ((${#TMP_FILES[@]})) && rm -f -- "${TMP_FILES[@]}"
   ((${#TMP_DIRS[@]})) && rm -rf -- "${TMP_DIRS[@]}"
