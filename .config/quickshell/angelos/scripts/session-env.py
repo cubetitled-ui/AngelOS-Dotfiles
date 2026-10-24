@@ -93,6 +93,11 @@ def clean(env):
     for k, v in env.items():
         if k in DROP or k.startswith(DROP_PREFIX) or not NAME.match(k) or "\n" in v:
             continue
+        # Never allow sandbox or corrupted environments to poison systemd service
+        if k == "HOME" and v != os.path.expanduser("~"):
+            continue
+        if k == "LD_PRELOAD" and not os.path.exists(v.replace("$LIB", "lib")):
+            continue
         out[k] = v
     return out
 
