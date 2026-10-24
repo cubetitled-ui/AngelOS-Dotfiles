@@ -127,6 +127,41 @@ def pkgs(a, key):
     return v
 
 
+_APT_PKGNAMES = None
+_DPKG_INSTALLED = None
+
+
+def is_debian_like():
+    return bool(shutil.which("apt-get") and not shutil.which("pacman"))
+
+
+def apt_has(name):
+    global _APT_PKGNAMES
+    if not name or not shutil.which("apt-cache"):
+        return False
+    if _APT_PKGNAMES is None:
+        try:
+            _APT_PKGNAMES = set(run(["apt-cache", "pkgnames"]).stdout.splitlines())
+        except Exception:
+            _APT_PKGNAMES = set()
+    return name in _APT_PKGNAMES
+
+
+def apt_installed(names):
+    global _DPKG_INSTALLED
+    if not names:
+        return False
+    if shutil.which("dpkg-query"):
+        if _DPKG_INSTALLED is None:
+            try:
+                _DPKG_INSTALLED = set(run(["dpkg-query", "-W", "-f=${Package}\t${Status}\n"]).stdout.splitlines())
+                _DPKG_INSTALLED = {line.split("\t")[0] for line in _DPKG_INSTALLED if "install ok installed" in line}
+            except Exception:
+                _DPKG_INSTALLED = set()
+        return all(n in _DPKG_INSTALLED for n in names)
+    return False
+
+
 def pacman_installed(names):
     """every one of names is installed (none given: False)"""
     if not names:
@@ -134,10 +169,7 @@ def pacman_installed(names):
     if shutil.which("pacman"):
         return run(["pacman", "-T", *names]).returncode == 0
     if shutil.which("dpkg-query"):
-        for n in names:
-            if run(["dpkg-query", "-W", "-f=${Status}", n]).stdout.strip() != "install ok installed":
-                return False
-        return True
+        return apt_installed(names)
     return False
 
 
@@ -173,9 +205,10 @@ def installed(a):
     if a.get("script") == "voxtype-install.sh":
         models = Path.home() / ".local/share" / "voxtype" / "models"
         return (Path.home() / ".local/bin/voxtype").is_file() and models.is_dir() and any(models.glob("*large-v3-turbo*"))
-    pac, aur = pkgs(a, "pacman"), pkgs(a, "aur")
+    pac, aur, apt_pkgs = pkgs(a, "pacman"), pkgs(a, "aur"), pkgs(a, "apt")
     gh = [(a.get("github") or {}).get("package")] if a.get("github") else []
     main = (pacman_installed(pac[:1]) or pacman_installed(aur[:1]) or pacman_installed(gh)
+            or apt_installed(apt_pkgs[:1])
             or flatpak_installed(a.get("flatpak"))
             or (a.get("bin") and bool(shutil.which(a.get("bin"))))
             or (a.get("id") and bool(shutil.which(a.get("id")))))
@@ -189,6 +222,18 @@ def resolve(a, repos_coming=False):
     if a.get("script"):
         return False, "script"
     pac, aur, flat = pkgs(a, "pacman"), pkgs(a, "aur"), a.get("flatpak")
+    if is_debian_like():
+        apt_cand = pkgs(a, "apt") or [p for p in pac if apt_has(p)]
+        has_flat = bool(flat)
+        if a.get("prefer") == "flatpak" and has_flat:
+            return False, "flatpak"
+        if apt_cand and (apt_has(apt_cand[0]) or apt_installed(apt_cand[:1])):
+            return False, "apt"
+        if has_flat:
+            return False, "flatpak"
+        if a.get("github") and a["github"].get("archive"):
+            return False, "github"
+        return False, ""
     has_flat = bool(flat) and bool(shutil.which("flatpak") or pacman_has("flatpak"))
     if a.get("prefer") == "flatpak" and has_flat:
         return False, "flatpak"
@@ -643,12 +688,17 @@ def desktop_of(a):
     g = a.get("github") or {}
     if g.get("archive") and installed(a):
         return g["desktop"]
-    names = pkgs(a, "pacman") + pkgs(a, "aur") + ([a["github"]["package"]] if a.get("github") else [])
+    names = pkgs(a, "apt") + pkgs(a, "pacman") + pkgs(a, "aur") + ([a["github"]["package"]] if a.get("github") else [])
     for name in names:
-        if not pacman_installed([name]):
+        if not (pacman_installed([name]) or apt_installed([name])):
             continue
-        files = [Path(f) for f in run(["pacman", "-Qlq", name]).stdout.split()
-                 if f.startswith("/usr/share/applications/") and f.endswith(".desktop")]
+        files = []
+        if shutil.which("pacman"):
+            files = [Path(f) for f in run(["pacman", "-Qlq", name]).stdout.split()
+                     if f.startswith("/usr/share/applications/") and f.endswith(".desktop")]
+        elif shutil.which("dpkg-query"):
+            files = [Path(f) for f in run(["dpkg-query", "-L", name]).stdout.split()
+                     if f.startswith("/usr/share/applications/") and f.endswith(".desktop")]
         # a browser can bring more than one (Vivaldi's own and a private one): the web browser's
         files.sort(key=lambda f: "WebBrowser" not in f.read_text(errors="ignore"))
         if files:
@@ -776,7 +826,11 @@ def stop_root(helper):
 
 def install_one(a, via, aur_gone):
     """one app from its source; the truth is installed() afterwards"""
-    if via == "pacman":
+    if via == "apt":
+        names = pkgs(a, "apt") or [p for p in pkgs(a, "pacman") if apt_has(p)]
+        if names:
+            subprocess.run(root("apt-get", "install", "-y", *names))
+    elif via == "pacman":
         names = pkgs(a, "pacman")
         if a["id"] == "steam":
             names = [d for d in vulkan_drivers() if not pacman_installed([d])] + names
@@ -795,7 +849,10 @@ def install_one(a, via, aur_gone):
         subprocess.run(cmd + names)
     elif via == "flatpak":
         if not shutil.which("flatpak"):
-            subprocess.run(root("pacman", "-S", "--needed", "--noconfirm", "flatpak"))
+            if is_debian_like():
+                subprocess.run(root("apt-get", "install", "-y", "flatpak"))
+            else:
+                subprocess.run(root("pacman", "-S", "--needed", "--noconfirm", "flatpak"))
         subprocess.run(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub",
                         "https://dl.flathub.org/repo/flathub.flatpakrepo"])
         subprocess.run(["flatpak", "install", "--user", "-y", "--noninteractive", "flathub", a["flatpak"]])
@@ -860,7 +917,11 @@ def install(ids, wait=True, browser="", events=False, extra=()):
                   "adding the author's repositories (CachyOS's and multilib), so everything installs with pacman"))
             subprocess.run(root("bash", str(REPOS)))
         # the package lists and the system first: a plain -S on an old list fails halfway with 404s
-        if extra or any(v in ("pacman", "aur", "github") for _, v in todo):
+        if is_debian_like():
+            if extra or any(v in ("apt", "github") for _, v in todo):
+                ev("step", text=t("обновляю списки пакетов", "refreshing the package lists"))
+                subprocess.run(root("apt-get", "update", "-qq"))
+        elif extra or any(v in ("pacman", "aur", "github") for _, v in todo):
             ev("step", text=t("обновляю списки пакетов", "refreshing the package lists"))
             subprocess.run(root("pacman", "-Syu", "--noconfirm"))
         aur_gone = aur_missing([n for a, v in todo if v == "aur" for n in pkgs(a, "aur")])

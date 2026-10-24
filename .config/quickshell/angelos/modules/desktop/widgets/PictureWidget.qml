@@ -101,15 +101,10 @@ Item {
                 smooth: !root.sharp
                 mipmap: !root.sharp
                 fillMode: Image.PreserveAspectFit
-                loops: root.loops > 0 ? root.loops : AnimatedImage.Infinite
-                finishBehavior: root.restOnLast ? AnimatedImage.FinishAtFinalFrame : AnimatedImage.FinishAtInitialFrame
                 playing: root.gifOk
                 paused: !root.seen
-                onFinished: if (root.every > 0)
-                    again.restart()
-                // a new file or new loops: from the start
+                // a new file: from the start
                 onSourceChanged: again.stop()
-                onLoopsChanged: root.replay()
                 // cache before the source: the picture loads once, the right way
                 Component.onCompleted: {
                     cache = root.cached;

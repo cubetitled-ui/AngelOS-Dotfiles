@@ -77,7 +77,6 @@ Item {
         ShapePath {
             fillColor: "transparent"
             strokeColor: root.shown > 0.002 ? root.color : "transparent"
-            strokeGradient: root.shaded && root.shown > 0.002 ? sweep : null
             strokeWidth: root.lineWidth
             capStyle: ShapePath.RoundCap
             PathAngleArc {

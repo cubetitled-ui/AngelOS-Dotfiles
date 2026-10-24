@@ -8,6 +8,7 @@
 ![niri](https://img.shields.io/badge/niri-26.04-4fe3ff?style=flat-square&labelColor=241432)
 ![quickshell](https://img.shields.io/badge/quickshell-0.3-b36bff?style=flat-square&labelColor=241432)
 ![cachyos](https://img.shields.io/badge/CachyOS%20%2F%20Arch-♡-ffb3d9?style=flat-square&labelColor=241432)
+![ubuntu](https://img.shields.io/badge/Ubuntu%2024.04%2F24.10-supported-E95420?style=flat-square&labelColor=241432)
 ![license](https://img.shields.io/badge/license-MIT-57e3a2?style=flat-square&labelColor=241432)
 ![signal](https://img.shields.io/badge/signal-lost-ff5cad?style=flat-square&labelColor=241432)
 
@@ -81,10 +82,21 @@ don't listen to the recording up there. it's not mine. well, it is. let's skip i
 </div>
 
 ```bash
-git clone https://github.com/MixaDoDs/AngelOS-Dotfiles.git
+git clone https://github.com/cubetitled-ui/AngelOS-Dotfiles.git
 cd AngelOS-Dotfiles
 ./install.sh
 ```
+
+### Ubuntu Quickstart & Dual-Session with GNOME
+
+> [!TIP]
+> **Preserving GNOME**: AngelOS works in complete coexistence with your existing GNOME desktop and GDM display manager. It does not replace or break GNOME.
+> 
+> 1. Run the three commands above in your terminal.
+> 2. Once the installation completes, reboot or log out.
+> 3. At the GDM login screen, click your username, then click the **gear / cog icon** in the bottom-right corner.
+> 4. Select **AngelOS** to enter the pastel Niri desktop, or **Ubuntu** to return to standard GNOME.
+> 5. **NVIDIA GPUs**: Vulkan renderer (`~/.config/angelos/renderer` = `vulkan`) is configured automatically to eliminate wayland-egl timer lock and guarantee 0% idle CPU usage.
 
 ![The installer: profile, look, apps, layouts and the hearts progress bar](docs/demo/installer.gif)
 

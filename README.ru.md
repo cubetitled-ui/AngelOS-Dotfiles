@@ -8,6 +8,7 @@
 ![niri](https://img.shields.io/badge/niri-26.04-4fe3ff?style=flat-square&labelColor=241432)
 ![quickshell](https://img.shields.io/badge/quickshell-0.3-b36bff?style=flat-square&labelColor=241432)
 ![cachyos](https://img.shields.io/badge/CachyOS%20%2F%20Arch-♡-ffb3d9?style=flat-square&labelColor=241432)
+![ubuntu](https://img.shields.io/badge/Ubuntu%2024.04%2F24.10-поддерживается-E95420?style=flat-square&labelColor=241432)
 ![license](https://img.shields.io/badge/license-MIT-57e3a2?style=flat-square&labelColor=241432)
 ![сигнал](https://img.shields.io/badge/%D1%81%D0%B8%D0%B3%D0%BD%D0%B0%D0%BB-%D0%BF%D0%BE%D1%82%D0%B5%D1%80%D1%8F%D0%BD-ff5cad?style=flat-square&labelColor=241432)
 
@@ -81,10 +82,21 @@
 </div>
 
 ```bash
-git clone https://github.com/MixaDoDs/AngelOS-Dotfiles.git
+git clone https://github.com/cubetitled-ui/AngelOS-Dotfiles.git
 cd AngelOS-Dotfiles
 ./install.sh
 ```
+
+### Быстрый старт на Ubuntu и двойная сессия с GNOME
+
+> [!TIP]
+> **Сохранение GNOME**: AngelOS работает в полной гармонии с вашей установленной системой Ubuntu, GNOME и менеджером входа GDM. Установка не ломает и не перезаписывает GNOME.
+> 
+> 1. Запустите три команды выше в любом терминале Ubuntu.
+> 2. После завершения установки завершите сеанс или перезагрузитесь.
+> 3. На экране входа GDM нажмите на имя пользователя, затем на **иконку шестерёнки** в правом нижнем углу.
+> 4. Выберите **AngelOS** для входа в окружение Niri или **Ubuntu** для возврата в привычный GNOME.
+> 5. **Для видеокарт NVIDIA**: Рендерер Vulkan (`~/.config/angelos/renderer` = `vulkan`) настраивается автоматически, исключая зависания wayland-egl и снижая нагрузку на CPU до нуля.
 
 ![Установщик: профиль, облик, программы, раскладки и прогресс-бар из сердечек](docs/demo/installer.gif)
 

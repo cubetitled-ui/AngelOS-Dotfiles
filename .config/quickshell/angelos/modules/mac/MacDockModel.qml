@@ -317,7 +317,7 @@ Singleton {
         openInFileManager(downloads);
     }
 
-    function short(s) {
+    function shorten(s) {
         s = String(s);
         return s.length > 48 ? s.slice(0, 46) + "…" : s;
     }
@@ -328,7 +328,7 @@ Singleton {
         const out = [];
         // a minimized one with a diamond, as on a Mac (Niri.focusWindow brings it back)
         for (const w of it.windows)
-            out.push(MacMenus.fn("d:w" + w.id, (Minimize.isMinimized(w) ? "◆ " : "") + root.short(Niri.titleOf(w) || it.name), () => Niri.focusWindow(w.id), {
+            out.push(MacMenus.fn("d:w" + w.id, (Minimize.isMinimized(w) ? "◆ " : "") + root.shorten(Niri.titleOf(w) || it.name), () => Niri.focusWindow(w.id), {
                 "toggle": "check",
                 "checked": AppMenu.window && AppMenu.window.id === w.id
             }));

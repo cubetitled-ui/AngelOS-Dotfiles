@@ -101,10 +101,8 @@ AngelOS состоит из следующих взаимодействующи�
 
 ### 📌 Сценарий 5: Виджет Antigravity Companion завис или показывает устаревшие лимиты
 1. Внутренний язык-сервер `agy` при перезапуске слушает случайный HTTP-порт.
-2. Сканер [`plugins/antigravity-companion/scan.py`](file:///home/cune/.config/quickshell/angelos/plugins/antigravity-companion/scan.py) автоматически ищет живой порт через `ss -tlnp` и сохраняет в `~/.cache/angelos/antigravity-ls.json`.
 3. Запусти разово проверку:
    ```bash
-   python3 ~/.config/quickshell/angelos/plugins/antigravity-companion/scan.py
    ```
    Убедись, что поле `limitsAt` соответствует текущему времени.
 4. Если хук `sync.py` вызывает ошибки в `cli.log`, помни: для события `PostToolUse` хук должен возвращать пустой JSON `{}` (не `{"injectSteps": []}`).

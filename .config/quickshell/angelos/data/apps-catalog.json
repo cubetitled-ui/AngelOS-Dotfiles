@@ -157,7 +157,8 @@
           "lutris"
         ]
       },
-      "flatpak": "com.valvesoftware.Steam"
+      "flatpak": "com.valvesoftware.Steam",
+      "apt": "steam-installer"
     },
     {
       "id": "prism",
@@ -187,7 +188,8 @@
       "icon": "camera",
       "pacman": "obs-studio",
       "flatpak": "com.obsproject.Studio",
-      "prefer": "flatpak"
+      "prefer": "flatpak",
+      "apt": "obs-studio"
     },
     {
       "id": "kdenlive",
@@ -442,7 +444,8 @@
       "hintRu": "язык Go",
       "hintEn": "the Go language",
       "icon": "terminal",
-      "pacman": "go"
+      "pacman": "go",
+      "apt": "golang-go"
     },
     {
       "id": "zig",
@@ -469,7 +472,8 @@
       "hintRu": "OpenJDK",
       "hintEn": "OpenJDK",
       "icon": "terminal",
-      "pacman": "jre-openjdk"
+      "pacman": "jre-openjdk",
+      "apt": "default-jdk"
     },
     {
       "id": "docker",
@@ -478,7 +482,8 @@
       "hintRu": "контейнеры",
       "hintEn": "containers",
       "icon": "layers",
-      "pacman": "docker"
+      "pacman": "docker",
+      "apt": "docker.io"
     },
     {
       "id": "qemu",
@@ -487,7 +492,8 @@
       "hintRu": "виртуальные машины",
       "hintEn": "virtual machines",
       "icon": "layers",
-      "pacman": "qemu-full"
+      "pacman": "qemu-full",
+      "apt": "qemu-system"
     },
     {
       "id": "basedevel",
@@ -496,7 +502,8 @@
       "hintRu": "сборка пакетов (make, gcc…)",
       "hintEn": "building packages (make, gcc…)",
       "icon": "terminal",
-      "pacman": "base-devel"
+      "pacman": "base-devel",
+      "apt": "build-essential"
     },
     {
       "id": "strata",
@@ -612,7 +619,8 @@
       "hintEn": "documents, spreadsheets, slides",
       "icon": "document",
       "pacman": "libreoffice-fresh",
-      "flatpak": "org.libreoffice.LibreOffice"
+      "flatpak": "org.libreoffice.LibreOffice",
+      "apt": "libreoffice"
     },
     {
       "id": "thunderbird",
@@ -622,7 +630,8 @@
       "hintEn": "mail and calendar",
       "icon": "bell",
       "pacman": "thunderbird",
-      "flatpak": "org.mozilla.Thunderbird"
+      "flatpak": "org.mozilla.Thunderbird",
+      "apt": "thunderbird"
     },
     {
       "id": "code",

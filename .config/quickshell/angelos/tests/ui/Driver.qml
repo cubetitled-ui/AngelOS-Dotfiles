@@ -270,14 +270,14 @@ Scope {
             active: false
             sourceComponent: Column {
                 id: wrapPage
-                readonly property string long: "Калькулятор: 2+2·3, 15% от 200, 10 км в милях, 100 usd в rub"
+                readonly property string longText: "Калькулятор: 2+2·3, 15% от 200, 10 км в милях, 100 usd в rub"
                 property alias group: groupW
                 property alias direct: directT
                 property alias inRow: rowT
                 property alias row: rowW
                 property alias inColumn: colT
                 property alias row2: row2W
-                property alias short: shortT
+                property alias shortText: shortT
                 property alias free: freeT
                 width: Theme.u * 170
                 PxGroup {
@@ -286,7 +286,7 @@ Scope {
                     title: "wrap"
                     PxToggle {
                         id: directT
-                        text: wrapPage.long
+                        text: wrapPage.longText
                     }
                     PxToggle {
                         id: shortT
@@ -297,7 +297,7 @@ Scope {
                         label: "Поиск"
                         PxToggle {
                             id: rowT
-                            text: wrapPage.long
+                            text: wrapPage.longText
                         }
                     }
                     SettingRow {
@@ -307,7 +307,7 @@ Scope {
                             width: parent.width
                             PxToggle {
                                 id: colT
-                                text: wrapPage.long
+                                text: wrapPage.longText
                             }
                         }
                     }
@@ -316,7 +316,7 @@ Scope {
                 Row {
                     PxToggle {
                         id: freeT
-                        text: wrapPage.long
+                        text: wrapPage.longText
                     }
                 }
             }
@@ -1313,16 +1313,16 @@ Scope {
             // PxToggle wraps a long label inside PxGroup / SettingRow, keeps short and free ones on one line
             const w = wrapStage.item;
             const fits = (t, box) => t.mapToItem(box, t.width, 0).x <= box.width + 0.5;
-            const wrapped = t => t.height > w.short.height + 1;
+            const wrapped = t => t.height > w.shortText.height + 1;
             const checks = [
                 ["group", fits(w.direct, w.group) && wrapped(w.direct)],
                 ["row", fits(w.inRow, w.row) && wrapped(w.inRow)],
                 ["column", fits(w.inColumn, w.row2) && wrapped(w.inColumn)],
-                ["short", w.short.width === w.short.implicitWidth && !wrapped(w.short)],
+                ["short", w.shortText.width === w.shortText.implicitWidth && !wrapped(w.shortText)],
                 ["free", w.free.width === w.free.implicitWidth && !wrapped(w.free)]
             ];
             const bad = checks.filter(c => !c[1]).map(c => c[0]);
-            report("toggle-wrap", bad.length === 0, bad.length ? "overflow/one line: " + bad.join(", ") : "long labels wrap in " + Math.round(w.direct.width) + " px, short and free stay " + Math.round(w.short.height) + " px tall");
+            report("toggle-wrap", bad.length === 0, bad.length ? "overflow/one line: " + bad.join(", ") : "long labels wrap in " + Math.round(w.direct.width) + " px, short and free stay " + Math.round(w.shortText.height) + " px tall");
             wrapStage.active = false;
             console.log("TEST-PAGE start-styles");
             startStyles = ["classic", "win11", "fullscreen", "xmb", "spotlight"];

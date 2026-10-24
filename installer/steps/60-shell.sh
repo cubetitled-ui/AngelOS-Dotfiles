@@ -98,6 +98,66 @@ EOF
     as_root chmod 644 "$desktop_file" 2>/dev/null || true
     rm -f "$tmp"
   fi
+
+  # Ensure niri-session script exists
+  if ! command -v niri-session >/dev/null 2>&1 && [[ ! -x /usr/local/bin/niri-session ]]; then
+    say "$(_ 'Installing niri-session wrapper…' 'Установка скрипта запуска niri-session…')"
+    local tmp_sess
+    tmp_sess="$(mktemp)"
+    cat >"$tmp_sess" <<'EOF'
+#!/bin/sh
+if hash systemctl >/dev/null 2>&1; then
+    if systemctl --user -q is-active niri.service; then
+      echo 'A niri session is already running.'
+      exit 1
+    fi
+    systemctl --user reset-failed
+    systemctl --user import-environment
+    if hash dbus-update-activation-environment 2>/dev/null; then
+        dbus-update-activation-environment --all
+    fi
+    systemctl --user --wait start niri.service
+    systemctl --user start --job-mode=replace-irreversibly niri-shutdown.target
+    systemctl --user unset-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP NIRI_SOCKET
+else
+    exec niri --session
+fi
+EOF
+    as_root cp "$tmp_sess" /usr/local/bin/niri-session 2>/dev/null || true
+    as_root chmod 755 /usr/local/bin/niri-session 2>/dev/null || true
+    rm -f "$tmp_sess"
+  fi
+
+  # Ensure niri systemd user units exist if system-wide ones are missing
+  local udir="$HOME_DIR/.config/systemd/user"
+  mkdir -p "$udir"
+  if [[ ! -f "$udir/niri.service" && ! -f "/usr/lib/systemd/user/niri.service" ]]; then
+    cat >"$udir/niri.service" <<'EOF'
+[Unit]
+Description=A scrollable-tiling Wayland compositor
+BindsTo=graphical-session.target
+Before=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+Wants=xdg-desktop-autostart.target
+Before=xdg-desktop-autostart.target
+
+[Service]
+Slice=session.slice
+Type=notify
+ExecStart=niri --session
+EOF
+  fi
+  if [[ ! -f "$udir/niri-shutdown.target" && ! -f "/usr/lib/systemd/user/niri-shutdown.target" ]]; then
+    cat >"$udir/niri-shutdown.target" <<'EOF'
+[Unit]
+Description=Shutdown running niri session
+DefaultDependencies=no
+StopWhenUnneeded=true
+Conflicts=graphical-session.target graphical-session-pre.target
+After=graphical-session.target graphical-session-pre.target
+EOF
+  fi
 }
 
 install_shell() {

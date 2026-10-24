@@ -36,7 +36,7 @@ DROP = {
 DROP_PREFIX = ("CLAUDE_", "CODEX_", "KITTY_", "WEZTERM_", "ALACRITTY_", "TERM_PROGRAM",
                "__QUICKSHELL_", "ANGELOS_PRE_", "BASH_FUNC_")
 NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-ACTIVATION = ("GSK_RENDERER", "GDK_BACKEND", "QT_QPA_PLATFORM", "QT_QPA_PLATFORMTHEME",
+ACTIVATION = ("DISPLAY", "WAYLAND_DISPLAY", "GSK_RENDERER", "GDK_BACKEND", "QT_QPA_PLATFORM", "QT_QPA_PLATFORMTHEME",
               "ELECTRON_OZONE_PLATFORM_HINT", "MOZ_ENABLE_WAYLAND", "XCURSOR_THEME", "XCURSOR_SIZE")
 
 
@@ -69,6 +69,26 @@ def clean(env):
             env[key] = ":".join(parts)
         else:
             env.pop(key, None)
+    # Ensure DISPLAY points to a live X11/Xwayland socket
+    disp = env.get("DISPLAY", "")
+    sock = f"/tmp/.X11-unix/X{disp[1:]}" if disp.startswith(":") else ""
+    if not sock or not os.path.exists(sock):
+        try:
+            import subprocess
+            out_sat = subprocess.check_output(["ps", "-C", "xwayland-satellite", "-o", "args="], text=True)
+            for line in out_sat.splitlines():
+                parts = line.split()
+                if len(parts) > 1 and parts[1].startswith(":"):
+                    env["DISPLAY"] = parts[1]
+                    break
+        except Exception:
+            pass
+
+    path_val = env.get("PATH", "")
+    cargo_bin = os.path.expanduser("~/.cargo/bin")
+    if os.path.isdir(cargo_bin) and cargo_bin not in path_val.split(":"):
+        env["PATH"] = f"{cargo_bin}:{path_val}"
+
     out = {}
     for k, v in env.items():
         if k in DROP or k.startswith(DROP_PREFIX) or not NAME.match(k) or "\n" in v:
