@@ -169,6 +169,10 @@ ENABLE_SERVICES="${ENABLE_SERVICES:-1}"
 INSTALL_FLATPAK="${INSTALL_FLATPAK:-0}"
 INSTALL_TOOLS="${INSTALL_TOOLS:-1}"
 INSTALL_SDDM="${INSTALL_SDDM:-1}"
+# On systems with GDM/LightDM (Ubuntu, Debian, GNOME), keep existing DM by default so GNOME / AngelOS session choice is preserved at login
+if ! given INSTALL_SDDM && { command -v gdm3 >/dev/null 2>&1 || command -v gdm >/dev/null 2>&1 || [[ -e /etc/systemd/system/display-manager.service ]]; }; then
+  INSTALL_SDDM=0
+fi
 # A config-only run (SKIP_PACKAGES=1) leaves the system alone unless asked to.
 [[ "$SKIP_PACKAGES" == 1 ]] && ! given INSTALL_SDDM && INSTALL_SDDM=0
 [[ "$SKIP_PACKAGES" == 1 ]] && ! given INSTALL_TOOLS && INSTALL_TOOLS=0

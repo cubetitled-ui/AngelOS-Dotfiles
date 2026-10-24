@@ -79,6 +79,27 @@ os.replace(tmp, path)
 PY
 }
 
+install_session_desktop() {
+  local sessions_dir="$SYSROOT/usr/share/wayland-sessions"
+  local desktop_file="$sessions_dir/angelos.desktop"
+  if [[ -d "$sessions_dir" ]]; then
+    say "$(_ 'Registering AngelOS session for display manager (GDM/SDDM)…' 'Регистрация сессии AngelOS для менеджера входа (GDM/SDDM)…')"
+    local tmp
+    tmp="$(mktemp)"
+    cat >"$tmp" <<'EOF'
+[Desktop Entry]
+Name=AngelOS
+Comment=AngelOS Desktop (Niri + QuickShell)
+Exec=niri-session
+Type=Application
+DesktopNames=angelos;niri
+EOF
+    as_root cp "$tmp" "$desktop_file" 2>/dev/null || true
+    as_root chmod 644 "$desktop_file" 2>/dev/null || true
+    rm -f "$tmp"
+  fi
+}
+
 install_shell() {
   local shell_dir="$HOME_DIR/.config/quickshell/angelos"
   [[ "$DESKTOP_SHELL" != none && -d "$shell_dir" ]] || return 0
@@ -91,6 +112,11 @@ install_shell() {
     # where Settings → Updates pulls from
     printf 'repo=%s\nremote=%s\n' "$ROOT" "$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)" \
       > "$HOME_DIR/.config/angelos/dotfiles-source"
+    # On NVIDIA, use Vulkan renderer by default to avoid wayland-egl timer loop bug (QTBUG-95817)
+    if [[ -d /sys/module/nvidia || -e /proc/driver/nvidia/version ]] && [[ ! -f "$HOME_DIR/.config/angelos/renderer" ]]; then
+      printf 'vulkan\n' > "$HOME_DIR/.config/angelos/renderer"
+    fi
+    install_session_desktop
     # the first run's intro: its minute of sound is mixed now (~20 s, in the background), not
     # while the wizard waits for it (scripts/intro-sounds.py; INTRO_SOUNDS=0: never)
     if [[ "$INTRO_SOUNDS" == 1 ]] && command -v python3 >/dev/null 2>&1 && command -v ffmpeg >/dev/null 2>&1; then

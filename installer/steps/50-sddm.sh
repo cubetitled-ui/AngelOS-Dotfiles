@@ -40,9 +40,11 @@ sddm_enable() {
     else
       units=("$current")
     fi
+    local def_switch="y"
+    [[ "$name" =~ gdm|gdm3|lightdm ]] && def_switch="n"
     if { ((INTERACTIVE)) && confirm "$(_ "Login manager $name is enabled. Switch to SDDM?" \
-                                         "Сейчас включён менеджер входа $name. Переключить на SDDM?")" y; } ||
-       { ! ((INTERACTIVE)) && given INSTALL_SDDM; }; then
+                                         "Сейчас включён менеджер входа $name. Переключить на SDDM?")" "$def_switch"; } ||
+       { ! ((INTERACTIVE)) && given INSTALL_SDDM && [[ "$INSTALL_SDDM" == 1 ]]; }; then
       ((${#units[@]} == 0)) || as_root systemctl disable "${units[@]}" || true
     else
       warn "$(_ "Keeping $name; SDDM is installed but not enabled (sudo systemctl enable --force sddm)" \
