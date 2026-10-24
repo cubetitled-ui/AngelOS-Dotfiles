@@ -128,12 +128,17 @@ for _, name, label in sorted(rows):
 review() {
   ((INTERACTIVE)) || return 0
   local lines=() mb="" n=0 packs=0 id count size en ru dm answer
-  if [[ "$SKIP_PACKAGES" != 1 ]] && command -v pacman >/dev/null 2>&1; then
-    wanted_packages
-    n="$(printf '%s\n' "${PACKAGES[@]}" | xargs -r pacman -T 2>/dev/null | wc -l || true)"
-    mb="$(pacman -Sp --needed --print-format '%s' "${PACKAGES[@]}" 2>/dev/null | awk '{s+=$1} END {printf "%d", s/1048576}' || true)"
-    lines+=("$(_ "• the system is updated (pacman -Syu) and $n packages of angelOS come${mb:+ (~$mb MB)}" \
-                 "• система обновится (pacman -Syu) и встанут $n пакетов angelOS${mb:+ (~$mb МБ)}")")
+  if [[ "$SKIP_PACKAGES" != 1 ]]; then
+    if command -v pacman >/dev/null 2>&1; then
+      wanted_packages
+      n="$(printf '%s\n' "${PACKAGES[@]}" | xargs -r pacman -T 2>/dev/null | wc -l || true)"
+      mb="$(pacman -Sp --needed --print-format '%s' "${PACKAGES[@]}" 2>/dev/null | awk '{s+=$1} END {printf "%d", s/1048576}' || true)"
+      lines+=("$(_ "• the system is updated (pacman -Syu) and $n packages of angelOS come${mb:+ (~$mb MB)}" \
+                   "• система обновится (pacman -Syu) и встанут $n пакетов angelOS${mb:+ (~$mb МБ)}")")
+    elif command -v apt-get >/dev/null 2>&1; then
+      lines+=("$(_ "• Ubuntu packages, compositor (niri) and shell (quickshell) will be installed via apt/build" \
+                   "• Пакеты Ubuntu, композитор (niri) и оболочка (quickshell) будут установлены через apt/сборку")")
+    fi
   fi
   [[ "$MODE" == full ]] && for id in "${WALLPAPER_LIST[@]}"; do
     IFS='|' read -r id count size en ru <<<"$id"

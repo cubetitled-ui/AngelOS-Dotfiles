@@ -5,11 +5,16 @@
 bootstrap_tui() {
   ((INTERACTIVE)) || return 0
   if [[ "${NO_TUI:-0}" != 1 ]] && ! command -v gum >/dev/null 2>&1 && [[ "$SKIP_PACKAGES" != 1 ]] &&
-     command -v pacman >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1; then
+     command -v sudo >/dev/null 2>&1; then
     say "$(_ "The installer's menus and pictures are drawn by gum and chafa (two small tools from the official repositories)." \
              'Меню и картинки установщика рисуют gum и chafa (две маленькие утилиты из официальных репозиториев).')"
     if confirm "$(_ 'Install them now? (No = plain text prompts)' 'Поставить их сейчас? (Нет — обычные текстовые вопросы)')" y; then
-      sudo pacman -S --needed gum chafa || warn "$(_ 'gum did not install: plain prompts it is' 'gum не установился: будут обычные вопросы')"
+      if command -v pacman >/dev/null 2>&1; then
+        sudo pacman -S --needed gum chafa || warn "$(_ 'gum did not install: plain prompts it is' 'gum не установился: будут обычные вопросы')"
+      elif command -v apt-get >/dev/null 2>&1; then
+        sudo apt-get update -qq >/dev/null 2>&1 || true
+        sudo apt-get install -y --no-install-recommends gum chafa >/dev/null 2>&1 || warn "$(_ 'gum did not install: plain prompts it is' 'gum не установился: будут обычные вопросы')"
+      fi
     fi
   fi
   tui_detect
