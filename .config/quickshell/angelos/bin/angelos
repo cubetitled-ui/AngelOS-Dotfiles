@@ -225,7 +225,7 @@ case "$1" in
   # (ANGELOS_GUARD_EVERY). The look is two reads of /proc by the shell's builtins: a tick
   # starts nothing but its `sleep`.
   guard)
-    pid="${2:?pid}" misses=0 first="${ANGELOS_GUARD_FIRST:-25}" tick="${ANGELOS_GUARD_TICK:-3}" probe_timeout="${ANGELOS_GUARD_TIMEOUT:-2}"
+    pid="${2:?pid}" misses=0 first="${ANGELOS_GUARD_FIRST:-45}" tick="${ANGELOS_GUARD_TICK:-5}" probe_timeout="${ANGELOS_GUARD_TIMEOUT:-5}"
     every="${ANGELOS_GUARD_EVERY:-60}" hz="$(getconf CLK_TCK 2>/dev/null || echo 100)" last_cpu="" last_sw="" since=0
     # the main thread now: $state (R, S, T…), $cpu (ticks) and $sw (times it slept), or false
     # when unreadable
