@@ -126,6 +126,7 @@ apt_install() {
     python3 python3-pip python3-pil python3-numpy python3-evdev
     libqt6svg6 qml6-module-qtquick qml6-module-qt5compat
     kitty flatpak xdg-user-dirs
+    gir1.2-gtklayershell-0.1 libgtk-layer-shell0 tesseract-ocr
     cmake ninja-build pkg-config build-essential gcc
     qt6-base-dev qt6-base-private-dev qt6-declarative-dev qt6-declarative-private-dev
     qt6-wayland-dev qt6-wayland-private-dev qt6-shadertools-dev libdrm-dev
