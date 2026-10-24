@@ -35,6 +35,9 @@ Item {
     property var clips: []                     // {n, title, at}
     readonly property var camAngel: cam.visible ? cam.angel : null
     property string bestLine: ""
+    function escapeHtml(s) {
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
 
     // ---- people: the regulars are the same every day, the rest come and go ----
     property int seed: 1
@@ -946,7 +949,7 @@ Item {
                                 elide: Text.ElideRight
                                 textFormat: Text.StyledText
                                 // the nick in its own colour, a badge before it, the text after
-                                text: (msg.badge ? "<font color=\"" + (msg.bot ? Theme.accent : Theme.accent3) + "\">" + msg.badge + "</font> " : "") + "<b><font color=\"" + msg.col + "\">" + Qt.escapeHtml(msg.nick) + (msg.sc ? " ¥" + msg.amount : "") + "</font></b>: " + (msg.bot ? "<font color=\"" + Theme.textDim + "\">" : "") + Qt.escapeHtml(msg.text) + (msg.bot ? "</font>" : "")
+                                text: (msg.badge ? "<font color=\"" + (msg.bot ? Theme.accent : Theme.accent3) + "\">" + msg.badge + "</font> " : "") + "<b><font color=\"" + msg.col + "\">" + root.escapeHtml(msg.nick) + (msg.sc ? " ¥" + msg.amount : "") + "</font></b>: " + (msg.bot ? "<font color=\"" + Theme.textDim + "\">" : "") + root.escapeHtml(msg.text) + (msg.bot ? "</font>" : "")
                             }
                         }
                     }

@@ -129,7 +129,16 @@ def pkgs(a, key):
 
 def pacman_installed(names):
     """every one of names is installed (none given: False)"""
-    return bool(names) and run(["pacman", "-T", *names]).returncode == 0
+    if not names:
+        return False
+    if shutil.which("pacman"):
+        return run(["pacman", "-T", *names]).returncode == 0
+    if shutil.which("dpkg-query"):
+        for n in names:
+            if run(["dpkg-query", "-W", "-f=${Status}", n]).stdout.strip() != "install ok installed":
+                return False
+        return True
+    return False
 
 
 def pacman_has(name):
@@ -167,8 +176,10 @@ def installed(a):
     pac, aur = pkgs(a, "pacman"), pkgs(a, "aur")
     gh = [(a.get("github") or {}).get("package")] if a.get("github") else []
     main = (pacman_installed(pac[:1]) or pacman_installed(aur[:1]) or pacman_installed(gh)
-            or flatpak_installed(a.get("flatpak")))
-    return main and all(pacman_installed([p]) for p in pkgs(a, "extra"))
+            or flatpak_installed(a.get("flatpak"))
+            or (a.get("bin") and bool(shutil.which(a.get("bin"))))
+            or (a.get("id") and bool(shutil.which(a.get("id")))))
+    return bool(main) and (not shutil.which("pacman") or all(pacman_installed([p]) for p in pkgs(a, "extra")))
 
 
 def resolve(a, repos_coming=False):

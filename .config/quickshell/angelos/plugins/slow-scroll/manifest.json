@@ -1,0 +1,16 @@
+{
+  "id": "slow-scroll",
+  "name": "Медленное прокручивание",
+  "version": "1.0.0",
+  "author": "cune",
+  "description": "Автоматическая медленная и плавная прокрутка окон и документов под курсором с регулировкой скорости и направления.",
+  "icon": "mouse",
+  "themes": [
+    "pixel",
+    "mac"
+  ],
+  "main": "Main.qml",
+  "barWidget": "BarWidget.qml",
+  "settings": "Settings.qml",
+  "settingsNear": "devices"
+}
