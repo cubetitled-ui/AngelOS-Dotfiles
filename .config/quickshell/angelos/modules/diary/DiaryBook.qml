@@ -415,8 +415,6 @@ PanelWindow {
             transform: Rotation {
                 origin.x: win.turnBack ? win.pageW : 0
                 origin.y: win.pageH / 2
-                // a softer perspective than Qt's default: the near edge stays near the book
-                distanceToPlane: win.pageW * 12
                 axis {
                     x: 0
                     y: 1
@@ -576,8 +574,6 @@ PanelWindow {
             transform: Rotation {
                 origin.x: win.fromRight ? 0 : win.pageW
                 origin.y: win.pageH / 2
-                // a softer perspective than Qt's default: the near edge stays near the book
-                distanceToPlane: win.pageW * 12
                 axis {
                     x: 0
                     y: 1

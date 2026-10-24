@@ -5,9 +5,11 @@
 [English](README.md) · **Русский**
 
 ![кассета](https://img.shields.io/badge/%D0%BA%D0%B0%D1%81%D1%81%D0%B5%D1%82%D0%B0-03%20·%20Uriel%20(Beta)-ff5cad?style=flat-square&labelColor=241432)
+![ubuntu](https://img.shields.io/badge/Ubuntu%2024.04%2F24.10-официальный%20порт-E95420?style=flat-square&labelColor=241432)
+![debian](https://img.shields.io/badge/Debian-совместимо-A81D33?style=flat-square&labelColor=241432)
 ![niri](https://img.shields.io/badge/niri-26.04-4fe3ff?style=flat-square&labelColor=241432)
 ![quickshell](https://img.shields.io/badge/quickshell-0.3-b36bff?style=flat-square&labelColor=241432)
-![cachyos](https://img.shields.io/badge/CachyOS%20%2F%20Arch-♡-ffb3d9?style=flat-square&labelColor=241432)
+![upstream](https://img.shields.io/badge/Апстрим-CachyOS%20%2F%20Arch-ffb3d9?style=flat-square&labelColor=241432)
 ![license](https://img.shields.io/badge/license-MIT-57e3a2?style=flat-square&labelColor=241432)
 ![сигнал](https://img.shields.io/badge/%D1%81%D0%B8%D0%B3%D0%BD%D0%B0%D0%BB-%D0%BF%D0%BE%D1%82%D0%B5%D1%80%D1%8F%D0%BD-ff5cad?style=flat-square&labelColor=241432)
 
@@ -30,7 +32,7 @@
 
 <img src="docs/readme/footage/stamp-evidence.ru.svg" width="240" align="right" alt="Красный резиновый штамп: ВЕЩДОК · НЕ СТИРАТЬ">
 
-> **ДЕТЕКТИВ.** Кассеты лежали под столом в жестяной коробке из-под печенья. Надписи — про диск, плёнка — про неё. На диске рабочий стол для **CachyOS / Arch** на [**niri**](https://github.com/YaLTeR/niri) с оболочкой на [**Quickshell**](https://quickshell.org). Дата сборки: 2026. Это невозможно. Мы выложили его сюда целиком. В углу панели кто-то сидит. Кто, не установили.
+> **ДЕТЕКТИВ.** Кассеты лежали под столом в жестяной коробке из-под печенья. Надписи — про диск, плёнка — про неё. На диске рабочий стол для **Ubuntu (24.04/24.10)** и **Debian** (официально портирован с **CachyOS / Arch**) на [**niri**](https://github.com/YaLTeR/niri) с оболочкой на [**Quickshell**](https://quickshell.org). Дата сборки: 2026. Это невозможно. Мы выложили его сюда целиком. В углу панели кто-то сидит. Кто, не установили.
 
 <img src="docs/screenshots/pixel-dark.png" width="100%" alt="Кадр с диска, ночь: панель в духе Win98 с пиксельными сердечками, виджеты часов, системного монитора и музыки, терминал с fastfetch, обои с кольцом в небе над водой">
 
@@ -81,10 +83,21 @@
 </div>
 
 ```bash
-git clone https://github.com/MixaDoDs/AngelOS-Dotfiles.git
+git clone https://github.com/cubetitled-ui/AngelOS-Dotfiles.git
 cd AngelOS-Dotfiles
 ./install.sh
 ```
+
+### Быстрый старт на Ubuntu и двойная сессия с GNOME
+
+> [!TIP]
+> **Сохранение GNOME**: AngelOS работает в полной гармонии с вашей установленной системой Ubuntu, GNOME и менеджером входа GDM. Установка не ломает и не перезаписывает GNOME.
+> 
+> 1. Запустите три команды выше в любом терминале Ubuntu.
+> 2. После завершения установки завершите сеанс или перезагрузитесь.
+> 3. На экране входа GDM нажмите на имя пользователя, затем на **иконку шестерёнки** в правом нижнем углу.
+> 4. Выберите **AngelOS** для входа в окружение Niri или **Ubuntu** для возврата в привычный GNOME.
+> 5. **Для видеокарт NVIDIA**: Рендерер Vulkan (`~/.config/angelos/renderer` = `vulkan`) настраивается автоматически, исключая зависания wayland-egl и снижая нагрузку на CPU до нуля.
 
 ![Установщик: профиль, облик, программы, раскладки и прогресс-бар из сердечек](docs/demo/installer.gif)
 
@@ -95,8 +108,10 @@ cd AngelOS-Dotfiles
 
 <br>
 
-Перед установкой: Arch Linux или CachyOS, интернет, свой пользователь (не root) с sudo (на голом Arch сначала
-`sudo pacman -S --needed git`). Примерно 10–30 минут, в основном загрузка.
+Перед установкой: **Ubuntu 24.04 / 24.10**, **Debian**, Arch Linux или CachyOS, интернет, свой пользователь (не root) с sudo
+(на Ubuntu/Debian: `sudo apt update && sudo apt install -y git curl`; на Arch: `sudo pacman -S --needed git`).
+Примерно 10–30 минут, в основном загрузка. Параллельная работа с установленным окружением GNOME полностью
+поддерживается «из коробки» (GDM сохраняет обе сессии).
 
 Установщик — маленькое шоу прямо в терминале: раскручивается жёсткий диск, ангел машет крыльями
 ([chafa](https://hpjansson.org/chafa/) рисует настоящие картинки в kitty, foot, Konsole, WezTerm; цветными блоками —
@@ -569,7 +584,7 @@ niri, плагины и настройки, без личного (путь до
 
 | | |
 | --- | --- |
-| **Система** | CachyOS или Arch Linux. Установщик добавляет только репозиторий `[cachyos]`, где его нет; пакеты Arch в приоритете. |
+| **Система** | **Ubuntu 24.04 LTS / 24.10**, **Debian**, CachyOS или Arch Linux. Автоматическое определение зависимостей и установка через `apt` и Flatpak. На Arch/CachyOS установщик добавляет репозиторий `[cachyos]`, где его нет. |
 | **GPU** | NVIDIA и AMD. Системный монитор читает обе; Qt-фиксы для NVIDIA уже внутри. |
 | **Ноутбук** | батарея и предел заряда, эко-режим, клавиши яркости и подсветки, прокрутка и ускорение тачпада; в мастере и в Настройках, и только на ноутбуке. |
 | **Мониторы** | сколько угодно, любая частота (точно та, что в списке niri, 144 Гц остаются 144 Гц после перезагрузки), масштаб, поворот, вертикальные экраны с обоями 9:16, ультраширокие с 21:9. По *производитель модель серийник*, так что переименованный разъём совпадёт. |
@@ -615,7 +630,7 @@ niri, плагины и настройки, без личного (путь до
 Pictures/AngelOS/            обои каждого релиза с подсказками сцен
 packages/                    pacman.txt, angelos.txt, sddm.txt, tools.txt, fish.txt, nvim.txt (программы: data/apps-catalog.json)
 installer/tui.sh             лицо установщика: меню gum, пиксельные рамки, сердечки, чат стрима
-install.sh                   установщик: спрашивает всё, бэкапит, только Arch Linux / CachyOS
+install.sh                   установщик: спрашивает всё, бэкапит, полная поддержка Ubuntu / Debian и Arch / CachyOS
 scripts/check.sh             проверка репозитория со сквозными тестами установщика
 scripts/demo/                стенд, в котором сняты кадры и записи этой страницы
 docs/                        кадры и записи этой страницы

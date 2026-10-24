@@ -641,8 +641,8 @@ function valueNoise(r, n) {
 function generate(seed, W, H, opts) {
     const r = rng(seed);
     const steps = [];
-    const short = Math.min(W, H);
-    const R = Math.max(12, Math.min(110, short * (0.22 + r() * 0.08)));
+    const shortSide = Math.min(W, H);
+    const R = Math.max(12, Math.min(110, shortSide * (0.22 + r() * 0.08)));
     const corners = ["tl", "tr", "bl", "br"];
     const size = {};
     for (const c of corners) {

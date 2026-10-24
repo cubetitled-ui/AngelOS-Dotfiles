@@ -606,8 +606,8 @@ Singleton {
         if (ratio(a, b) >= need)
             return true;
         // one holds the other, nearly all of it (brackets are already gone): "Love" is not "Lovely"
-        const short = a.length < b.length ? a : b, long = a.length < b.length ? b : a;
-        return short.length >= 6 && long.includes(short) && short.length / long.length >= 0.8;
+        const sName = a.length < b.length ? a : b, lName = a.length < b.length ? b : a;
+        return sName.length >= 6 && lName.includes(sName) && sName.length / lName.length >= 0.8;
     }
     function artistsOf(x) {
         return String(x || "").split(/\s*(?:,|;|&|\/|\bx\b|×|\+|\bfeat\.?|\bft\.?|\bfeaturing\b|\band\b|\bи\b)\s*/i).map(key).filter(k => k.length > 0);

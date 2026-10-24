@@ -62,7 +62,6 @@ Shape {
     ShapePath {
         fillColor: "transparent"
         strokeColor: fig.ring ? fig.tint : "transparent"
-        strokeGradient: fig.shaded && fig.ring ? fig.bands : null
         strokeWidth: fig.stroke
         PathAngleArc {
             centerX: fig.cx
@@ -75,7 +74,6 @@ Shape {
     ShapePath {
         fillColor: "transparent"
         strokeColor: fig.ring ? fig.tint : "transparent"
-        strokeGradient: fig.shaded && fig.ring ? fig.bands : null
         strokeWidth: Math.max(1, fig.stroke / 2.4)
         PathAngleArc {
             centerX: fig.cx
@@ -88,7 +86,6 @@ Shape {
     ShapePath {
         fillColor: "transparent"
         strokeColor: fig.tint
-        strokeGradient: fig.shaded ? fig.bands : null
         strokeWidth: fig.stroke
         joinStyle: ShapePath.MiterJoin
         capStyle: ShapePath.RoundCap

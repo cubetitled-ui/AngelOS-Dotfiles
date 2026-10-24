@@ -79,6 +79,87 @@ os.replace(tmp, path)
 PY
 }
 
+install_session_desktop() {
+  local sessions_dir="$SYSROOT/usr/share/wayland-sessions"
+  local desktop_file="$sessions_dir/angelos.desktop"
+  if [[ -d "$sessions_dir" ]]; then
+    say "$(_ 'Registering AngelOS session for display manager (GDM/SDDM)…' 'Регистрация сессии AngelOS для менеджера входа (GDM/SDDM)…')"
+    local tmp
+    tmp="$(mktemp)"
+    cat >"$tmp" <<'EOF'
+[Desktop Entry]
+Name=AngelOS
+Comment=AngelOS Desktop (Niri + QuickShell)
+Exec=niri-session
+Type=Application
+DesktopNames=angelos;niri
+EOF
+    as_root cp "$tmp" "$desktop_file" 2>/dev/null || true
+    as_root chmod 644 "$desktop_file" 2>/dev/null || true
+    rm -f "$tmp"
+  fi
+
+  # Ensure niri-session script exists
+  if ! command -v niri-session >/dev/null 2>&1 && [[ ! -x /usr/local/bin/niri-session ]]; then
+    say "$(_ 'Installing niri-session wrapper…' 'Установка скрипта запуска niri-session…')"
+    local tmp_sess
+    tmp_sess="$(mktemp)"
+    cat >"$tmp_sess" <<'EOF'
+#!/bin/sh
+if hash systemctl >/dev/null 2>&1; then
+    if systemctl --user -q is-active niri.service; then
+      echo 'A niri session is already running.'
+      exit 1
+    fi
+    systemctl --user reset-failed
+    systemctl --user import-environment
+    if hash dbus-update-activation-environment 2>/dev/null; then
+        dbus-update-activation-environment --all
+    fi
+    systemctl --user --wait start niri.service
+    systemctl --user start --job-mode=replace-irreversibly niri-shutdown.target
+    systemctl --user unset-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE XDG_CURRENT_DESKTOP NIRI_SOCKET
+else
+    exec niri --session
+fi
+EOF
+    as_root cp "$tmp_sess" /usr/local/bin/niri-session 2>/dev/null || true
+    as_root chmod 755 /usr/local/bin/niri-session 2>/dev/null || true
+    rm -f "$tmp_sess"
+  fi
+
+  # Ensure niri systemd user units exist if system-wide ones are missing
+  local udir="$HOME_DIR/.config/systemd/user"
+  mkdir -p "$udir"
+  if [[ ! -f "$udir/niri.service" && ! -f "/usr/lib/systemd/user/niri.service" ]]; then
+    cat >"$udir/niri.service" <<'EOF'
+[Unit]
+Description=A scrollable-tiling Wayland compositor
+BindsTo=graphical-session.target
+Before=graphical-session.target
+Wants=graphical-session-pre.target
+After=graphical-session-pre.target
+Wants=xdg-desktop-autostart.target
+Before=xdg-desktop-autostart.target
+
+[Service]
+Slice=session.slice
+Type=notify
+ExecStart=niri --session
+EOF
+  fi
+  if [[ ! -f "$udir/niri-shutdown.target" && ! -f "/usr/lib/systemd/user/niri-shutdown.target" ]]; then
+    cat >"$udir/niri-shutdown.target" <<'EOF'
+[Unit]
+Description=Shutdown running niri session
+DefaultDependencies=no
+StopWhenUnneeded=true
+Conflicts=graphical-session.target graphical-session-pre.target
+After=graphical-session.target graphical-session-pre.target
+EOF
+  fi
+}
+
 install_shell() {
   local shell_dir="$HOME_DIR/.config/quickshell/angelos"
   [[ "$DESKTOP_SHELL" != none && -d "$shell_dir" ]] || return 0
@@ -91,6 +172,11 @@ install_shell() {
     # where Settings → Updates pulls from
     printf 'repo=%s\nremote=%s\n' "$ROOT" "$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)" \
       > "$HOME_DIR/.config/angelos/dotfiles-source"
+    # On NVIDIA, use Vulkan renderer by default to avoid wayland-egl timer loop bug (QTBUG-95817)
+    if [[ -d /sys/module/nvidia || -e /proc/driver/nvidia/version ]] && [[ ! -f "$HOME_DIR/.config/angelos/renderer" ]]; then
+      printf 'vulkan\n' > "$HOME_DIR/.config/angelos/renderer"
+    fi
+    install_session_desktop
     # the first run's intro: its minute of sound is mixed now (~20 s, in the background), not
     # while the wizard waits for it (scripts/intro-sounds.py; INTRO_SOUNDS=0: never)
     if [[ "$INTRO_SOUNDS" == 1 ]] && command -v python3 >/dev/null 2>&1 && command -v ffmpeg >/dev/null 2>&1; then
@@ -164,6 +250,25 @@ KDL
   fi
 }
 
+# Discord's Go Live with sound crashes now and then when a program's sound stream comes or goes.
+# With a mixer whose virtual outputs carry all the sound (a RØDECaster and the like: the default
+# output is a PipeWire loopback), extras/discord-shield hides single programs' streams from
+# Discord, which streams the mixes instead; without one it does nothing. A WirePlumber 0.5 script,
+# linked into WirePlumber's own folders and read at its next start. DISCORD_SHIELD=0, or
+# ~/.config/angelos/discord-shield.off, leaves it out.
+install_discord_shield() {
+  [[ "$DESKTOP_SHELL" == angelos && "$DISCORD_SHIELD" == 1 ]] || return 0
+  [[ -e "$HOME_DIR/.config/angelos/discord-shield.off" ]] && return 0
+  local src="$HOME_DIR/.config/quickshell/angelos/extras/discord-shield"
+  local scripts="$HOME_DIR/.local/share/wireplumber/scripts/angelos"
+  local conf="$HOME_DIR/.config/wireplumber/wireplumber.conf.d"
+  [[ -f "$src/discord-shield.lua" ]] || return 0
+  wireplumber --version 2>/dev/null | grep -q 'libwireplumber 0\.5' || return 0
+  mkdir -p -- "$scripts" "$conf"
+  ln -sfn -- "$src/discord-shield.lua" "$scripts/discord-shield.lua"
+  ln -sfn -- "$src/90-angelos-discord-shield.conf" "$conf/90-angelos-discord-shield.conf"
+}
+
 # fish as the login shell (FISH_DEFAULT): fish installed by this run is added to /etc/shells
 # and made the login shell; one that was there before is left as it is unless asked for.
 # SYSROOT (tests): /etc/shells under it and a log line instead of chsh.
@@ -227,6 +332,7 @@ install_apps() {
 # the steps of this file, in the order of the run (see step() in installer/lib/core.sh)
 step 25 install_shell "angelOS" "angelOS"
 step 30 install_minimize_hook "the windows' minimize button" "кнопка «свернуть» у окон"
+step 32 install_discord_shield "Discord streams with a mixer" "стрим Discord с пультом"
 step 45 install_apps "the apps" "программы"
 step 50 setup_fish_shell "fish" "fish"
 step 75 enable_services "user services" "user-сервисы"

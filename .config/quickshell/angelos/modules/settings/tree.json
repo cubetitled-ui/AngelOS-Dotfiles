@@ -66,10 +66,10 @@
           "hintRu": "главный экран, яркость, расположение мониторов",
           "hintEn": "the main screen, brightness, arranging monitors",
           "blocks": [
-            "monitor/arrangement",
-            "monitor/output",
-            "monitor/brightness-colour",
             "laptop/backlight",
+            "monitor/brightness-colour",
+            "monitor/arrangement",
+            "monitor/output"
             "monitor/@"
           ],
           "links": [
@@ -1837,9 +1837,9 @@
             "hintRu": "главный экран, яркость, расположение мониторов",
             "hintEn": "the main screen, brightness, arranging monitors",
             "blocks": [
+              "laptop/backlight",
               "monitor/main-screen",
               "monitor/brightness-colour",
-              "laptop/backlight",
               "monitor/arrangement",
               "monitor/output",
               "monitor/@",

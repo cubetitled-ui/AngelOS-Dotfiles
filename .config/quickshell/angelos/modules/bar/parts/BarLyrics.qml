@@ -29,6 +29,10 @@ Item {
     readonly property string fontFamily: hell ? Theme.fontHell : Theme.fontBody
     readonly property int fontPx: hell ? Theme.hellPx(Theme.fs) : Theme.sizeBody
 
+    function escapeHtml(s) {
+        return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+
     // widest line of the current song, measured once per song
     property real songText: 0
     function measureSong() {
@@ -433,7 +437,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             textFormat: Text.StyledText
             color: root.hell ? (Lyrics.current === "" || !Lyrics.playing ? (root.burning ? "#b0b0b0" : Theme.hellTextDim) : (root.burning ? "white" : Theme.hellText)) : root.barInk ? (Lyrics.current === "" || !Lyrics.playing ? Theme.hellTextDim : Theme.hellText) : Lyrics.current === "" || !Lyrics.playing ? Theme.textDim : Theme.text
-            text: Qt.escapeHtml(root.shown)
+            text: root.escapeHtml(root.shown)
             PxText {
                 visible: cur.typing
                 x: root.typedW

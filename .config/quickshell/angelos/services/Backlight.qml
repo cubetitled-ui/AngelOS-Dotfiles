@@ -75,7 +75,16 @@ Singleton {
             root.logind(["backlight", root.dev.name, root._want])
     }
     function logind(args) {
-        Quickshell.execDetached(["busctl", "call", "--system", "org.freedesktop.login1", "/org/freedesktop/login1/session/auto", "org.freedesktop.login1.Session", "SetBrightness", "ssu", String(args[0]), String(args[1]), String(args[2])]);
+        const sub = String(args[0]);
+        const name = String(args[1]);
+        const val = String(args[2]);
+        Quickshell.execDetached([
+            "sh", "-c",
+            'echo "$3" > "/sys/class/$1/$2/brightness" 2>/dev/null || ' +
+            'brightnessctl -d "$2" set "$3" 2>/dev/null || ' +
+            'busctl call --system org.freedesktop.login1 /org/freedesktop/login1/session/auto org.freedesktop.login1.Session SetBrightness ssu "$1" "$2" "$3" 2>/dev/null || true',
+            "sh", sub, name, val
+        ]);
     }
 
     // the firmware may move it too (a key handled by the EC, an ambient sensor): look now and then

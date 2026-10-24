@@ -320,10 +320,10 @@ var __aosLens = (function () {
             }
             // the long side down to 1600 px: Lens doesn't need more, the post stays small
             createImageBitmap(blob).then(function (bm) {
-                var long = Math.max(bm.width, bm.height);
-                if (long <= 1600 && (mime === "image/png" || mime === "image/jpeg"))
+                var longSide = Math.max(bm.width, bm.height);
+                if (longSide <= 1600 && (mime === "image/png" || mime === "image/jpeg"))
                     return send(blob, mime);
-                var k = Math.min(1, 1600 / long), c = document.createElement("canvas");
+                var k = Math.min(1, 1600 / longSide), c = document.createElement("canvas");
                 c.width = Math.round(bm.width * k);
                 c.height = Math.round(bm.height * k);
                 c.getContext("2d").drawImage(bm, 0, 0, c.width, c.height);

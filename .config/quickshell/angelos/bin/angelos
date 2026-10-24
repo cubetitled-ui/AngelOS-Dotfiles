@@ -111,8 +111,8 @@ shell_env() {
     opengl) ;;
     *)
       ver=""
-      for q in /usr/lib/qt6/bin/qtpaths6 /usr/lib64/qt6/bin/qtpaths6; do
-        [ -x "$q" ] && ver="$("$q" --qt-version 2>/dev/null)" && break
+      for q in /usr/bin/qtpaths6 /usr/lib/qt6/bin/qtpaths6 /usr/lib64/qt6/bin/qtpaths6 "$(command -v qtpaths6 2>/dev/null || true)"; do
+        [ -n "$q" ] && [ -x "$q" ] && ver="$("$q" --qt-version 2>/dev/null)" && break
       done
       plugins="${XDG_DATA_HOME:-$HOME/.local/share}/angelos/qt/$ver/plugins"
       if [ -n "$ver" ] && [ -f "$plugins/wayland-graphics-integration-client/libqt-plugin-wayland-egl.so" ]; then
@@ -489,6 +489,16 @@ case "$1" in
     esac
     shift; exec qs -c angelos ipc call angelos spell "$*" ;;
   autostart) shift; exec python3 "$SHELL_DIR/scripts/autostart.py" "$@" ;;
+  scroll|autoscroll)
+    case "${2:-toggle}" in
+      toggle) exec qs -c angelos ipc call autoscroll toggle ;;
+      start|on) exec qs -c angelos ipc call autoscroll start ;;
+      stop|off) exec qs -c angelos ipc call autoscroll stop ;;
+      status) exec qs -c angelos ipc call autoscroll status ;;
+      speed) shift 2; exec qs -c angelos ipc call autoscroll setSpeed "${1:-1.5}" ;;
+      dir) shift 2; exec qs -c angelos ipc call autoscroll setDir "${1:-1}" ;;
+      *) echo "angelos scroll [toggle | start | stop | status | speed N | dir 1|-1]" >&2; exit 2 ;;
+    esac ;;
   programs) shift; exec python3 "$SHELL_DIR/scripts/programs.py" "$@" ;;
   updates) shift; exec python3 "$SHELL_DIR/scripts/updates-cli.py" "$@" ;;
   keys)

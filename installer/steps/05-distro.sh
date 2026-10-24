@@ -12,7 +12,12 @@ check_distro() {
   [[ -r "$file" ]] && { id=$(sed -n 's/^ID=//p' "$file" | tr -d '"'); like=$(sed -n 's/^ID_LIKE=//p' "$file" | tr -d '"');
                         name=$(sed -n 's/^PRETTY_NAME=//p' "$file" | tr -d '"'); }
   DISTRO_ID="$id"
-  case "$id" in arch|cachyos) return 0 ;; esac
+  case "$id" in
+    arch|cachyos|ubuntu|debian|linuxmint|pop) return 0 ;;
+  esac
+  if [[ " $like " == *" arch "* || " $like " == *" debian "* || " $like " == *" ubuntu "* ]]; then
+    return 0
+  fi
   # configs only (SKIP_PACKAGES=1, as Settings → Updates runs it): nothing comes from the
   # distribution's repositories, so its own repositories don't matter. Updates of a system
   # installed with DOTFILES_FORCE_DISTRO=1 (Arch Linux ARM, EndeavourOS…) get here

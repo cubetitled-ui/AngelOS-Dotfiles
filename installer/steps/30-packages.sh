@@ -77,9 +77,103 @@ wanted_packages() {
   mapfile -t PACKAGES < <(printf '%s\n' "${packages[@]}" | not_removed)
 }
 
+quickshell_install_ubuntu() {
+  if command -v quickshell >/dev/null 2>&1 || command -v qs >/dev/null 2>&1; then
+    return 0
+  fi
+  say "$(_ 'Building and installing Quickshell for Ubuntu…' 'Сборка и установка Quickshell для Ubuntu…')"
+  local bdir
+  bdir="$(mktemp -d -t qs-build-XXXXXX)"
+  if git clone --depth 1 --recursive https://github.com/quickshell-mirror/quickshell.git "$bdir"; then
+    if cmake -B "$bdir/build" -S "$bdir" -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local; then
+      if ninja -C "$bdir/build"; then
+        sudo ninja -C "$bdir/build" install || warn "Quickshell sudo ninja install failed"
+      else
+        warn "Quickshell ninja compile failed"
+      fi
+    else
+      warn "Quickshell cmake configure failed"
+    fi
+  else
+    warn "Failed to clone quickshell repository"
+  fi
+  rm -rf "$bdir"
+}
+
+niri_install_ubuntu() {
+  if command -v niri >/dev/null 2>&1; then
+    return 0
+  fi
+  local niri_script="$ROOT/.config/quickshell/angelos/scripts/angel-niri-install.sh"
+  if [[ -f "$niri_script" ]]; then
+    say "$(_ 'Installing angel-niri Wayland compositor…' 'Установка композитора angel-niri…')"
+    bash "$niri_script" install || warn "$(_ 'Failed to install angel-niri' 'Не удалось установить angel-niri')"
+  fi
+}
+
+apt_install() {
+  [[ "$SKIP_PACKAGES" == 1 ]] && { say "$(_ 'SKIP_PACKAGES=1: packages skipped' 'SKIP_PACKAGES=1: пакеты пропущены')"; return 0; }
+  command -v sudo >/dev/null 2>&1 || die "$(_ 'sudo is required to install packages' 'Для установки пакетов нужен sudo')"
+
+  say "$(_ 'Checking and installing Ubuntu/Debian dependencies…' 'Проверка и установка зависимостей Ubuntu/Debian…')"
+  local debs=(
+    curl git jq socat libnotify-bin brightnessctl playerctl
+    cava pipewire pipewire-pulse wireplumber
+    grim slurp wl-clipboard cliphist
+    fastfetch fuzzel qt6ct xsettingsd wlsunset wtype wf-recorder
+    imagemagick netpbm eog
+    fonts-liberation2 fonts-noto-extra fonts-noto-color-emoji fonts-noto-core
+    python3 python3-pip python3-pil python3-numpy python3-evdev
+    libqt6svg6 qml6-module-qtquick qml6-module-qt5compat
+    kitty flatpak xdg-user-dirs
+    cmake ninja-build pkg-config build-essential gcc
+    qt6-base-dev qt6-base-private-dev qt6-declarative-dev qt6-declarative-private-dev
+    qt6-wayland-dev qt6-wayland-private-dev qt6-shadertools-dev libdrm-dev
+    libpam0g-dev libjemalloc-dev spirv-tools libcli11-dev
+  )
+
+  local missing=()
+  for p in "${debs[@]}"; do
+    if ! dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q "install ok installed"; then
+      missing+=("$p")
+    fi
+  done
+
+  if ((${#missing[@]} > 0)); then
+    say "$(_ "Installing ${#missing[@]} packages via apt: ${missing[*]}" "Установка пакетов (${#missing[@]}) через apt: ${missing[*]}")"
+    sudo apt-get update -qq || true
+    sudo apt-get install -y --no-install-recommends "${missing[@]}" || warn "$(_ 'Some apt packages failed to install' 'Некоторые пакеты apt не удалось установить')"
+  else
+    say "$(_ 'All required Ubuntu/Debian packages are already installed' 'Все необходимые пакеты Ubuntu/Debian уже установлены')"
+  fi
+
+  for code in "${KB_LIST[@]}"; do
+    local tpkg=""
+    case "$code" in
+      ru) tpkg="tesseract-ocr-rus" ;;
+      us|en) tpkg="tesseract-ocr-eng" ;;
+      *) tpkg="tesseract-ocr-$code" ;;
+    esac
+    if ! dpkg-query -W -f='${Status}' "$tpkg" 2>/dev/null | grep -q "install ok installed"; then
+      sudo apt-get install -y --no-install-recommends "$tpkg" 2>/dev/null || true
+    fi
+  done
+
+  # On Ubuntu, install angel-niri and quickshell if not present
+  niri_install_ubuntu
+  quickshell_install_ubuntu
+}
+
 pacman_install() {
   local pkg code
-  command -v pacman >/dev/null 2>&1 || { warn "$(_ 'pacman not found; skipping system packages' 'pacman не найден; системные пакеты пропущены')"; return 0; }
+  if ! command -v pacman >/dev/null 2>&1; then
+    if command -v apt-get >/dev/null 2>&1; then
+      apt_install
+      return 0
+    fi
+    warn "$(_ 'pacman not found; skipping system packages' 'pacman не найден; системные пакеты пропущены')"
+    return 0
+  fi
   [[ "$SKIP_PACKAGES" == 1 ]] && { say "$(_ 'SKIP_PACKAGES=1: packages skipped' 'SKIP_PACKAGES=1: пакеты пропущены')"; return 0; }
   command -v sudo >/dev/null 2>&1 || die "$(_ 'sudo is required to install packages' 'Для установки пакетов нужен sudo')"
   cachyos_repos

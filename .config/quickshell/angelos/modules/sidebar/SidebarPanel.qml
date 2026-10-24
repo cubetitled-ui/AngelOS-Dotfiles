@@ -145,6 +145,35 @@ PxWindow {
                 }
             }
 
+            // ---- brightness ----
+            Column {
+                visible: Backlight.available
+                width: parent.width
+                spacing: Theme.u * 3
+                Row {
+                    id: brightRow
+                    width: col.width
+                    spacing: Theme.u * 3
+                    PxButton {
+                        compact: true
+                        icon: "sun"
+                        anchors.verticalCenter: parent.verticalCenter
+                        onClicked: Backlight.step(Backlight.level >= 0.9 ? -4 : 2)
+                    }
+                    PxSlider {
+                        width: brightRow.width - x
+                        anchors.verticalCenter: parent.verticalCenter
+                        from: 0
+                        to: 1
+                        stepSize: 0.01
+                        value: Backlight.level
+                        valueScale: 100
+                        suffix: "%"
+                        onMoved: v => Backlight.set(v)
+                    }
+                }
+            }
+
             // ---- system ----
             SysmonWidget {
                 visible: Sidebar.has("system")

@@ -5,9 +5,11 @@
 **English** · [Русский](README.ru.md)
 
 ![tape](https://img.shields.io/badge/tape-03%20·%20Uriel%20(Beta)-ff5cad?style=flat-square&labelColor=241432)
+![ubuntu](https://img.shields.io/badge/Ubuntu%2024.04%2F24.10-primary%20port-E95420?style=flat-square&labelColor=241432)
+![debian](https://img.shields.io/badge/Debian-compatible-A81D33?style=flat-square&labelColor=241432)
 ![niri](https://img.shields.io/badge/niri-26.04-4fe3ff?style=flat-square&labelColor=241432)
 ![quickshell](https://img.shields.io/badge/quickshell-0.3-b36bff?style=flat-square&labelColor=241432)
-![cachyos](https://img.shields.io/badge/CachyOS%20%2F%20Arch-♡-ffb3d9?style=flat-square&labelColor=241432)
+![upstream](https://img.shields.io/badge/Upstream-CachyOS%20%2F%20Arch-ffb3d9?style=flat-square&labelColor=241432)
 ![license](https://img.shields.io/badge/license-MIT-57e3a2?style=flat-square&labelColor=241432)
 ![signal](https://img.shields.io/badge/signal-lost-ff5cad?style=flat-square&labelColor=241432)
 
@@ -30,7 +32,7 @@ CONDITION ........ drive reads. last save: 31.12.2002 23:59:59
 
 <img src="docs/readme/footage/stamp-evidence.svg" width="240" align="right" alt="A red rubber stamp: EVIDENCE · DO NOT ERASE">
 
-> **DETECTIVE.** The tapes were under the desk in a tin biscuit box. The labels are about the drive; the footage is about her. On the drive is a desktop for **CachyOS / Arch** on [**niri**](https://github.com/YaLTeR/niri) with a shell on [**Quickshell**](https://quickshell.org). Build date: 2026. This is impossible. We have put all of it here. Someone is sitting in the corner of the panel. Identity not established.
+> **DETECTIVE.** The tapes were under the desk in a tin biscuit box. The labels are about the drive; the footage is about her. On the drive is a desktop for **Ubuntu (24.04/24.10)** and **Debian** (officially ported from **CachyOS / Arch**) on [**niri**](https://github.com/YaLTeR/niri) with a shell on [**Quickshell**](https://quickshell.org). Build date: 2026. This is impossible. We have put all of it here. Someone is sitting in the corner of the panel. Identity not established.
 
 <img src="docs/screenshots/pixel-dark.png" width="100%" alt="Still from the drive, at night: the Win98-style taskbar with pixel hearts, the clock, system monitor and music widgets, a terminal with fastfetch, the wallpaper with a ring in the sky over the water">
 
@@ -81,10 +83,21 @@ don't listen to the recording up there. it's not mine. well, it is. let's skip i
 </div>
 
 ```bash
-git clone https://github.com/MixaDoDs/AngelOS-Dotfiles.git
+git clone https://github.com/cubetitled-ui/AngelOS-Dotfiles.git
 cd AngelOS-Dotfiles
 ./install.sh
 ```
+
+### Ubuntu Quickstart & Dual-Session with GNOME
+
+> [!TIP]
+> **Preserving GNOME**: AngelOS works in complete coexistence with your existing GNOME desktop and GDM display manager. It does not replace or break GNOME.
+> 
+> 1. Run the three commands above in your terminal.
+> 2. Once the installation completes, reboot or log out.
+> 3. At the GDM login screen, click your username, then click the **gear / cog icon** in the bottom-right corner.
+> 4. Select **AngelOS** to enter the pastel Niri desktop, or **Ubuntu** to return to standard GNOME.
+> 5. **NVIDIA GPUs**: Vulkan renderer (`~/.config/angelos/renderer` = `vulkan`) is configured automatically to eliminate wayland-egl timer lock and guarantee 0% idle CPU usage.
 
 ![The installer: profile, look, apps, layouts and the hearts progress bar](docs/demo/installer.gif)
 
@@ -95,8 +108,10 @@ cd AngelOS-Dotfiles
 
 <br>
 
-Before: Arch Linux or CachyOS, the internet, your own user (not root) with sudo (`sudo pacman -S --needed git`
-first on a bare Arch). About 10–30 minutes, mostly downloads.
+Before: **Ubuntu 24.04 / 24.10**, **Debian**, Arch Linux or CachyOS, the internet, your own user (not root) with sudo
+(`sudo apt update && sudo apt install -y git curl` on Ubuntu/Debian, or `sudo pacman -S --needed git` on Arch).
+About 10–30 minutes, mostly downloads. Dual-boot / dual-session with existing desktop environments like GNOME
+is fully supported out-of-the-box (GDM retains both sessions).
 
 The installer is a small show right in the terminal: a hard disk spins up, the angel flaps its wings
 ([chafa](https://hpjansson.org/chafa/) draws real pictures in kitty, foot, Konsole, WezTerm; coloured blocks in any
@@ -568,7 +583,7 @@ and i remind you about water. ***sternly*** when did you last drink something? g
 
 | | |
 | --- | --- |
-| **System** | CachyOS or Arch Linux. The installer appends only the `[cachyos]` repository where it is missing; Arch's own packages win. |
+| **System** | **Ubuntu 24.04 LTS / 24.10**, **Debian**, CachyOS or Arch Linux. Automatic dependency resolution and package management via `apt` & Flatpak. On Arch/CachyOS, the installer appends only the `[cachyos]` repository where it is missing. |
 | **GPU** | NVIDIA and AMD. The system monitor reads both; the Qt fixes for NVIDIA are in. |
 | **Laptop** | battery and charge limit, eco mode, brightness and keyboard-light keys, touchpad direction and acceleration; in the wizard and in Settings, and only on a laptop. |
 | **Monitors** | any number, any refresh rate (the exact one niri lists, so 144 Hz stays 144 Hz after a reboot), scale, rotation, portrait screens with 9:16 wallpapers, ultrawides with 21:9. Named by *Make Model Serial*, so a renamed connector still matches. |
@@ -614,7 +629,7 @@ let me tell you about the keys instead.
 Pictures/AngelOS/            every release's wallpapers, with their scene hints
 packages/                    pacman.txt, angelos.txt, sddm.txt, tools.txt, fish.txt, nvim.txt (the apps: data/apps-catalog.json)
 installer/tui.sh             the installer's face: gum menus, pixel frames, hearts, the stream chat
-install.sh                   the installer: asks everything, backs up, Arch Linux / CachyOS only
+install.sh                   the installer: asks everything, backs up, full Ubuntu / Debian and Arch / CachyOS support
 scripts/check.sh             the repository check, with end-to-end installer tests
 scripts/demo/                the stand the stills and clips on this page were shot in
 docs/                        the stills and clips of this page

@@ -86,6 +86,7 @@
 #   INTRO_SOUNDS=1|0               mix the first run's intro sound now, in the background
 #   MINIMIZE_HOOK=1|0              the windows' own minimize buttons reach angelOS
 #                                  (extras/minimize-hook: an LD_PRELOAD library, needs gcc)
+#   DISCORD_SHIELD=1|0             with a mixer (RØDECaster…), Discord streams don't crash on sound
 #   INSTALL_FLATPAK=0|1            (older switch, ignored: OBS and Blender are in the apps' catalog)
 #   INSTALL_TOOLS=1|0              small everyday tools from packages/tools.txt (fish, btop,
 #                                  ripgrep, yt-dlp, pavucontrol…; asked interactively, default 1;
@@ -157,6 +158,7 @@ DOWNLOAD_VOXTYPE_MODEL="${DOWNLOAD_VOXTYPE_MODEL:-1}"
 INSTALL_WALLPAPERS="${INSTALL_WALLPAPERS:-1}"
 INTRO_SOUNDS="${INTRO_SOUNDS:-1}"
 MINIMIZE_HOOK="${MINIMIZE_HOOK:-1}"
+DISCORD_SHIELD="${DISCORD_SHIELD:-1}"
 WALLPAPERS_REPO="${WALLPAPERS_REPO:-https://github.com/MixaDoDs/PixelStreetArt_Wallpapers}"
 # folder|pictures|MB|English|Russian — folders of WALLPAPERS_REPO, copied to ~/Pictures/<folder>
 WALLPAPER_LIST=(
@@ -172,6 +174,10 @@ ENABLE_SERVICES="${ENABLE_SERVICES:-1}"
 INSTALL_FLATPAK="${INSTALL_FLATPAK:-0}"
 INSTALL_TOOLS="${INSTALL_TOOLS:-1}"
 INSTALL_SDDM="${INSTALL_SDDM:-1}"
+# On systems with GDM/LightDM (Ubuntu, Debian, GNOME), keep existing DM by default so GNOME / AngelOS session choice is preserved at login
+if ! given INSTALL_SDDM && { command -v gdm3 >/dev/null 2>&1 || command -v gdm >/dev/null 2>&1 || [[ -e /etc/systemd/system/display-manager.service ]]; }; then
+  INSTALL_SDDM=0
+fi
 # A config-only run (SKIP_PACKAGES=1) leaves the system alone unless asked to.
 [[ "$SKIP_PACKAGES" == 1 ]] && ! given INSTALL_SDDM && INSTALL_SDDM=0
 [[ "$SKIP_PACKAGES" == 1 ]] && ! given INSTALL_TOOLS && INSTALL_TOOLS=0

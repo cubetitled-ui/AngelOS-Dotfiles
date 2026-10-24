@@ -171,8 +171,8 @@ def distro():
 
 
 def qt_version():
-    for q in ("/usr/lib/qt6/bin/qtpaths6", "/usr/lib64/qt6/bin/qtpaths6"):
-        if os.path.exists(q):
+    for q in (shutil.which("qtpaths6"), shutil.which("qtpaths"), "/usr/bin/qtpaths6", "/usr/lib/qt6/bin/qtpaths6", "/usr/lib64/qt6/bin/qtpaths6"):
+        if q and os.path.exists(q):
             return run([q, "--qt-version"])
     return ""
 
