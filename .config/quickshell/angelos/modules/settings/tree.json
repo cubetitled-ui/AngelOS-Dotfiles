@@ -69,7 +69,7 @@
             "laptop/backlight",
             "monitor/brightness-colour",
             "monitor/arrangement",
-            "monitor/output"
+            "monitor/output",
             "monitor/@"
           ],
           "links": [
