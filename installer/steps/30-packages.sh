@@ -117,7 +117,7 @@ apt_install() {
 
   say "$(_ 'Checking and installing Ubuntu/Debian dependencies…' 'Проверка и установка зависимостей Ubuntu/Debian…')"
   local debs=(
-    curl git jq socat libnotify-bin brightnessctl playerctl
+    curl git jq socat libnotify-bin brightnessctl playerctl zstd
     cava pipewire pipewire-pulse wireplumber
     grim slurp wl-clipboard cliphist
     fastfetch fuzzel qt6ct xsettingsd wlsunset wtype wf-recorder
@@ -142,6 +142,7 @@ apt_install() {
 
   if ((${#missing[@]} > 0)); then
     say "$(_ "Installing ${#missing[@]} packages via apt: ${missing[*]}" "Установка пакетов (${#missing[@]}) через apt: ${missing[*]}")"
+    sudo add-apt-repository -y universe 2>/dev/null || true
     sudo apt-get update -qq || true
     sudo apt-get install -y --no-install-recommends "${missing[@]}" || warn "$(_ 'Some apt packages failed to install' 'Некоторые пакеты apt не удалось установить')"
   else
@@ -165,11 +166,30 @@ apt_install() {
   quickshell_install_ubuntu
 }
 
+post_install_setup() {
+  # angelOS Meta tap reads the keyboards via evdev (issue #6); the group applies after re-login
+  [[ "$DESKTOP_SHELL" == angelos ]] && ! id -nG "$(id -un)" | grep -qw input && sudo usermod -aG input "$(id -un)" || true
+  # the same group may make a virtual mouse (mouse-coalesce in games): /dev/uinput is root's alone
+  # unless a rule says so (Steam brings one; without Steam nothing did)
+  # Bluetooth comes with angelOS (bluez) but a fresh system leaves its service off: the bar's
+  # button said «the service is off»
+  if [[ "$DESKTOP_SHELL" == angelos ]] && compgen -G '/sys/class/bluetooth/*' >/dev/null &&
+     ! systemctl is-enabled bluetooth.service >/dev/null 2>&1; then
+    sudo systemctl enable --now bluetooth.service >/dev/null 2>&1 || true
+  fi
+  local rule=/etc/udev/rules.d/70-angelos-uinput.rules
+  if [[ "$DESKTOP_SHELL" == angelos && ! -f "$rule" ]]; then
+    printf '# angelOS: the input group makes virtual input devices (mouse-coalesce)\nKERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"\n' |
+      sudo tee "$rule" >/dev/null && sudo udevadm control --reload 2>/dev/null && sudo udevadm trigger --name-match=uinput 2>/dev/null || true
+  fi
+}
+
 pacman_install() {
   local pkg code
   if ! command -v pacman >/dev/null 2>&1; then
     if command -v apt-get >/dev/null 2>&1; then
       apt_install
+      post_install_setup
       return 0
     fi
     warn "$(_ 'pacman not found; skipping system packages' 'pacman не найден; системные пакеты пропущены')"
@@ -221,21 +241,7 @@ pacman_install() {
       warn "$(_ "Not installed: ${PKG_FAILED[*]}  →  sudo pacman -S ${PKG_FAILED[*]}  (it says why)" \
                 "Не поставились: ${PKG_FAILED[*]}  →  sudo pacman -S ${PKG_FAILED[*]}  (он скажет почему)")"
   fi
-  # angelOS Meta tap reads the keyboards via evdev (issue #6); the group applies after re-login
-  [[ "$DESKTOP_SHELL" == angelos ]] && ! id -nG "$(id -un)" | grep -qw input && sudo usermod -aG input "$(id -un)" || true
-  # the same group may make a virtual mouse (mouse-coalesce in games): /dev/uinput is root's alone
-  # unless a rule says so (Steam brings one; without Steam nothing did)
-  # Bluetooth comes with angelOS (bluez) but a fresh system leaves its service off: the bar's
-  # button said «the service is off»
-  if [[ "$DESKTOP_SHELL" == angelos ]] && compgen -G '/sys/class/bluetooth/*' >/dev/null &&
-     ! systemctl is-enabled bluetooth.service >/dev/null 2>&1; then
-    sudo systemctl enable --now bluetooth.service >/dev/null 2>&1 || true
-  fi
-  local rule=/etc/udev/rules.d/70-angelos-uinput.rules
-  if [[ "$DESKTOP_SHELL" == angelos && ! -f "$rule" ]]; then
-    printf '# angelOS: the input group makes virtual input devices (mouse-coalesce)\nKERNEL=="uinput", SUBSYSTEM=="misc", GROUP="input", MODE="0660", OPTIONS+="static_node=uinput"\n' |
-      sudo tee "$rule" >/dev/null && sudo udevadm control --reload 2>/dev/null && sudo udevadm trigger --name-match=uinput 2>/dev/null || true
-  fi
+  post_install_setup
 }
 
 # angelOS is tested on Quickshell 0.3.2: an older one (a stale mirror, a pinned package)
