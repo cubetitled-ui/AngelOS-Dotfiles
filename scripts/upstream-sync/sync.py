@@ -21,6 +21,7 @@ from pathlib import Path
 
 REPO_DIR = Path(__file__).resolve().parents[2]
 UPSTREAM_REPO = "MixaDoDs/AngelOS-Dotfiles"
+UPSTREAM_BRANCHES = ["main", "Eben"]
 FORK_REMOTE = "fork"
 EXPERIMENTAL_BRANCH = "experimental"
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "angelos"
@@ -54,7 +55,7 @@ def save_state(st):
 
 
 def fetch_upstream():
-    run(["git", "fetch", "origin", "main"])
+    run(["git", "fetch", "origin", "main", "Eben:refs/remotes/origin/Eben"])
     res = run(["git", "rev-parse", "origin/main"])
     return res.stdout.strip()
 
