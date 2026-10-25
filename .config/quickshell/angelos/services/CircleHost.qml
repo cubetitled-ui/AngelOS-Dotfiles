@@ -143,6 +143,15 @@ Singleton {
         onExited: code => {
             root.socketReady = code === 0;
             if (root.socketReady && !root.test)
+                startupDelay.start();
+        }
+    }
+    Timer {
+        id: startupDelay
+        interval: 3500
+        repeat: false
+        onTriggered: {
+            if (root.socketReady && !root.test)
                 proc.running = true;
         }
     }

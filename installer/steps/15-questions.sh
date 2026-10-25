@@ -128,12 +128,17 @@ for _, name, label in sorted(rows):
 review() {
   ((INTERACTIVE)) || return 0
   local lines=() mb="" n=0 packs=0 id count size en ru dm answer
-  if [[ "$SKIP_PACKAGES" != 1 ]] && command -v pacman >/dev/null 2>&1; then
-    wanted_packages
-    n="$(printf '%s\n' "${PACKAGES[@]}" | xargs -r pacman -T 2>/dev/null | wc -l || true)"
-    mb="$(pacman -Sp --needed --print-format '%s' "${PACKAGES[@]}" 2>/dev/null | awk '{s+=$1} END {printf "%d", s/1048576}' || true)"
-    lines+=("$(_ "• the system is updated (pacman -Syu) and $n packages of angelOS come${mb:+ (~$mb MB)}" \
-                 "• система обновится (pacman -Syu) и встанут $n пакетов angelOS${mb:+ (~$mb МБ)}")")
+  if [[ "$SKIP_PACKAGES" != 1 ]]; then
+    if command -v pacman >/dev/null 2>&1; then
+      wanted_packages
+      n="$(printf '%s\n' "${PACKAGES[@]}" | xargs -r pacman -T 2>/dev/null | wc -l || true)"
+      mb="$(pacman -Sp --needed --print-format '%s' "${PACKAGES[@]}" 2>/dev/null | awk '{s+=$1} END {printf "%d", s/1048576}' || true)"
+      lines+=("$(_ "• the system is updated (pacman -Syu) and $n packages of angelOS come${mb:+ (~$mb MB)}" \
+                   "• система обновится (pacman -Syu) и встанут $n пакетов angelOS${mb:+ (~$mb МБ)}")")
+    elif command -v apt-get >/dev/null 2>&1; then
+      lines+=("$(_ "• Ubuntu packages, compositor (niri) and shell (quickshell) will be installed via apt/build" \
+                   "• Пакеты Ubuntu, композитор (niri) и оболочка (quickshell) будут установлены через apt/сборку")")
+    fi
   fi
   [[ "$MODE" == full ]] && for id in "${WALLPAPER_LIST[@]}"; do
     IFS='|' read -r id count size en ru <<<"$id"
@@ -161,6 +166,9 @@ review() {
       [[ -n "$g" ]] && lines+=("• $(_ 'games' 'игры'): $g")
     done < <(bash "$ROOT/.config/quickshell/angelos/scripts/game-setup.sh" --plan 2>/dev/null || true)
   fi
+  [[ "${ANGEL_NIRI:-1}" == 1 ]] &&
+    lines+=("$(_ "• angel-niri, angelOS's own niri, is downloaded (~10 MB) and starts from the next login; the niri package stays" \
+                 "• скачается angel-niri, свой niri angelOS (~10 МБ), и запустится со следующего входа; niri из пакета остаётся")")
   lines+=("$(_ "• your configs that differ are kept or backed up (*.bak.$STAMP); a log: ${INSTALL_LOG/#$HOME_DIR/\~}" \
                "• твои отличающиеся конфиги остаются или уходят в копию (*.bak.$STAMP); журнал: ${INSTALL_LOG/#$HOME_DIR/\~}")")
   lines+=("$(_ '• about 10–30 minutes, mostly the download; the admin password is asked once' \

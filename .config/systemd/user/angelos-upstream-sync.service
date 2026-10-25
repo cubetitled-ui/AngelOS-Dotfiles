@@ -1,0 +1,10 @@
+[Unit]
+Description=angelOS Upstream Auto-Sync and Merge Checker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /home/cune/.local/share/angelos/dotfiles/scripts/upstream-sync/sync.py
+StandardOutput=journal
+StandardError=journal

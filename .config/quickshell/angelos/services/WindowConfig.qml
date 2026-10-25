@@ -259,7 +259,7 @@ Singleton {
         if (Niri.nativeMinimize)
             Niri.action("SetMinimizeFade", {
                 "on": minimizeFade
-            });
+            }, (ok, err) => {});
     }
     onMinimizeFadeChanged: applyMinimizeFade()
     // angel-niri: the clipboard outlives the program it was copied from (niri keeps a copy in memory)
@@ -268,7 +268,7 @@ Singleton {
         if (Niri.nativeMinimize)
             Niri.action("SetClipboardKeep", {
                 "on": clipboardKeep
-            });
+            }, (ok, err) => {});
     }
     onClipboardKeepChanged: applyClipboardKeep()
     // angel-niri: throwing floating windows — they fly on after a drag, bounce, squash, sway
@@ -284,7 +284,7 @@ Singleton {
     }
     function applyThrow() {
         if (Niri.nativeMinimize)
-            Niri.action("SetWindowThrow", windowThrow);
+            Niri.action("SetWindowThrow", windowThrow, (ok, err) => {});
     }
     onWindowThrowChanged: applyThrow()
     onOverviewFontChanged: {

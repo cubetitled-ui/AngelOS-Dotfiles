@@ -65,8 +65,14 @@ build() {
   if ! command -v cargo >/dev/null 2>&1 || ! command -v clang >/dev/null 2>&1; then
     # the installer keeps sudo fresh; elsewhere (no password cached) this just fails
     step "$(_ 'installing Rust and clang to build it' 'ставлю Rust и clang для сборки')"
-    sudo -n pacman -S --needed --noconfirm rust clang >/dev/null 2>&1 ||
+    if command -v pacman >/dev/null 2>&1; then
+      sudo -n pacman -S --needed --noconfirm rust clang >/dev/null 2>&1 || return 1
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo -n apt-get update -qq >/dev/null 2>&1 || true
+      sudo -n apt-get install -y cargo rustc clang libpipewire-0.3-dev libpango1.0-dev libseat-dev libudev-dev libgbm-dev libinput-dev >/dev/null 2>&1 || return 1
+    else
       return 1
+    fi
   fi
   # rustup without a default toolchain answers nothing
   cargo --version >/dev/null 2>&1 || { command -v rustup >/dev/null 2>&1 && rustup default stable >/dev/null 2>&1; } || return 1
