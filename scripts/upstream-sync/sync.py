@@ -54,8 +54,15 @@ def save_state(st):
     SYNC_STATE_FILE.write_text(json.dumps(st, indent=2))
 
 
+def get_fork_remote():
+    res = run(["git", "remote"])
+    remotes = res.stdout.strip().splitlines()
+    return "fork" if "fork" in remotes else "origin"
+
+
 def fetch_upstream():
-    run(["git", "fetch", "origin", "main", "Eben:refs/remotes/origin/Eben"])
+    # Fetch from upstream MixaDoDs repo regardless of remote naming
+    run(["git", "fetch", "https://github.com/MixaDoDs/AngelOS-Dotfiles.git", "main:refs/remotes/origin/main", "Eben:refs/remotes/origin/Eben"])
     res = run(["git", "rev-parse", "origin/main"])
     return res.stdout.strip()
 
@@ -250,13 +257,14 @@ def sync():
     for c in commits[:5]:
         print("  -", c)
 
+    fork_remote = get_fork_remote()
     # Work in a clean git worktree for experimental branch
     worktree_dir = REPO_DIR / ".git/experimental_worktree"
     if worktree_dir.exists():
         run(["git", "worktree", "remove", "--force", str(worktree_dir)])
 
     try:
-        run(["git", "worktree", "add", "-B", EXPERIMENTAL_BRANCH, str(worktree_dir), f"{FORK_REMOTE}/{EXPERIMENTAL_BRANCH}"], check=True)
+        run(["git", "worktree", "add", "-B", EXPERIMENTAL_BRANCH, str(worktree_dir), f"{fork_remote}/{EXPERIMENTAL_BRANCH}"], check=True)
         
         # Merge upstream changes
         merge_res = run(["git", "merge", "--no-commit", "--no-ff", "origin/main"], cwd=worktree_dir)
@@ -273,7 +281,7 @@ def sync():
             # Commit the merge and push to experimental
             merge_msg = f"chore(upstream): auto-sync upstream {upstream_sha[:8]} into experimental\n\nCommits:\n" + "\n".join(commits)
             run(["git", "commit", "-m", merge_msg], cwd=worktree_dir)
-            run(["git", "push", FORK_REMOTE, EXPERIMENTAL_BRANCH], cwd=worktree_dir, check=True)
+            run(["git", "push", fork_remote, EXPERIMENTAL_BRANCH], cwd=worktree_dir, check=True)
             print("[upstream-sync] Experimental branch successfully merged and pushed to GitHub!")
 
             # Auto-merge clean updates into main and Eben if repo is clean
@@ -290,7 +298,7 @@ def sync():
                         run(["git", "merge", "--ff-only", "main"], check=True)
                         run(["git", "checkout", "main"], check=True)
                         # Push main & Eben
-                        run(["git", "push", FORK_REMOTE, "main", "Eben"], check=True)
+                        run(["git", "push", fork_remote, "main", "Eben"], check=True)
                         auto_merged_main = True
                         print("[upstream-sync] Successfully auto-merged and pushed to main & Eben!")
                     else:

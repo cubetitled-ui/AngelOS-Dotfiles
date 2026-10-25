@@ -43,7 +43,8 @@ say() { printf '» %s\n' "$*"; }
 # the messages in the shell's language (ANGELOS_LANG, Settings → Account), else the session's
 case "${ANGELOS_LANG:-${LC_ALL:-${LC_MESSAGES:-${LANG:-}}}}" in ru*) UI=ru ;; *) UI=en ;; esac
 _() { if [[ "$UI" == ru ]]; then printf '%s' "$2"; else printf '%s' "$1"; fi; }
-OFFICIAL="https://github.com/MixaDoDs/AngelOS-Dotfiles"
+OFFICIAL="https://github.com/cubetitled-ui/AngelOS-Dotfiles"
+UPSTREAM_OFFICIAL="https://github.com/MixaDoDs/AngelOS-Dotfiles"
 # the name before 2026-09-30: installs cloned from it keep it as their origin (GitHub redirects)
 LEGACY="https://github.com/MixaDoDs/PixelStreetArt_Dotfiles_Niri"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}/angelos"
@@ -93,7 +94,7 @@ trusted_remote() {
   url="$(git remote get-url origin 2>/dev/null || true)"
   [[ -f "$CONF/angelos/dotfiles-source" ]] && rec="$(sed -n 's/^remote=//p' "$CONF/angelos/dotfiles-source" | head -1)"
   [[ -n "$url" ]] || return 1
-  [[ "$(norm_url "$url")" == "$(norm_url "$OFFICIAL")" || "$(norm_url "$url")" == "$(norm_url "$LEGACY")" ]] && return 0
+  [[ "$(norm_url "$url")" == "$(norm_url "$OFFICIAL")" || "$(norm_url "$url")" == "$(norm_url "$UPSTREAM_OFFICIAL")" || "$(norm_url "$url")" == "$(norm_url "$LEGACY")" ]] && return 0
   [[ -n "$rec" && "$(norm_url "$url")" == "$(norm_url "$rec")" ]]
 }
 
@@ -238,6 +239,23 @@ REPO="${1:?repo}"
 cd "$REPO" 2>/dev/null || fail_early repo "$(_ "the repository folder is gone: $REPO — download the dotfiles again (Settings → Updates)" \
                                                "папки репозитория нет: $REPO — скачай dotfiles заново (Настройки → Обновления)")" 2
 is_repo . || fail_early repo "$(_ "not a dotfiles repository: $REPO (no .git or install.sh)" "это не репозиторий dotfiles: $REPO (нет .git или install.sh)")" 2
+
+# Ubuntu/Debian compatibility redirect: ensure Ubuntu machines update from the Ubuntu fork
+distro_id=""
+if [[ -r /etc/os-release ]]; then
+  distro_id="$(sed -n 's/^ID=//p' /etc/os-release | tr -d '"')"
+fi
+if [[ "$distro_id" =~ ^(ubuntu|debian|linuxmint|pop)$ ]]; then
+  curr_origin="$(git remote get-url origin 2>/dev/null || true)"
+  if [[ "$(norm_url "$curr_origin")" == "$(norm_url "$UPSTREAM_OFFICIAL")" || "$(norm_url "$curr_origin")" == "$(norm_url "$LEGACY")" ]]; then
+    say "$(_ "Ubuntu detected: updating from Ubuntu fork ($OFFICIAL)" "Обнаружена Ubuntu: обновляемся из форка для Ubuntu ($OFFICIAL)")"
+    git remote set-url origin "$OFFICIAL.git" 2>/dev/null || true
+    if [[ -f "$CONF/angelos/dotfiles-source" ]]; then
+      sed -i "s|^remote=.*|remote=$OFFICIAL.git|" "$CONF/angelos/dotfiles-source" 2>/dev/null || true
+    fi
+  fi
+fi
+
 if ! trusted_remote; then
   url="$(git remote get-url origin 2>/dev/null || echo '?')"
   fail_early untrusted "$(_ "origin is $url — neither the official repository nor the one this system was installed from, and an update runs its installer. Nothing changed. Point origin back (git -C \"$REPO\" remote set-url origin $OFFICIAL) or update by hand" \

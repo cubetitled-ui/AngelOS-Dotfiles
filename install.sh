@@ -294,6 +294,14 @@ self_update() {
   branch="$(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)" || return 0
   [[ -n "$branch" && "$branch" != HEAD ]] || return 0
   url="$(git -C "$ROOT" remote get-url origin 2>/dev/null)" || return 0
+  local os_rel="${DOTFILES_OS_RELEASE:-/etc/os-release}" did=""
+  [[ -r "$os_rel" ]] && did="$(sed -n 's/^ID=//p' "$os_rel" | tr -d '"')"
+  if [[ "$did" =~ ^(ubuntu|debian|linuxmint|pop)$ ]] && [[ "$url" == *"MixaDoDs/AngelOS-Dotfiles"* ]]; then
+    say "$(_ 'Ubuntu detected: switching remote to Ubuntu fork (cubetitled-ui/AngelOS-Dotfiles)' \
+              'Обнаружена Ubuntu: переключаю репозиторий на форк для Ubuntu (cubetitled-ui/AngelOS-Dotfiles)')"
+    git -C "$ROOT" remote set-url origin https://github.com/cubetitled-ui/AngelOS-Dotfiles.git
+    url="https://github.com/cubetitled-ui/AngelOS-Dotfiles.git"
+  fi
   head="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null)" || return 0
   if [[ "$url" =~ ^(https://github\.com/|git@github\.com:)([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)$ ]] && command -v curl >/dev/null 2>&1; then
     slug="${BASH_REMATCH[2]%.git}"
