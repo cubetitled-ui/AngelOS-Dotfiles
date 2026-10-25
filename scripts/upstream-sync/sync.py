@@ -113,17 +113,17 @@ def analyze_diff(old_sha, new_sha):
     }
 
 
-def validate_experimental():
-    """Run validation checks on the current worktree"""
+def validate_experimental(worktree_path=REPO_DIR):
+    """Run comprehensive validation checks on the current worktree"""
     # 1. Shell scripts check
-    for sh in [REPO_DIR / "install.sh", REPO_DIR / "installer/steps/30-packages.sh", REPO_DIR / "installer/steps/60-shell.sh"]:
+    for sh in [worktree_path / "install.sh", worktree_path / "installer/steps/30-packages.sh", worktree_path / "installer/steps/60-shell.sh"]:
         if sh.exists():
             rc = subprocess.run(["bash", "-n", str(sh)]).returncode
             if rc != 0:
                 return False, f"Bash syntax check failed on {sh.name}"
 
     # 2. Python compile
-    for py in (REPO_DIR / ".config/quickshell/angelos/scripts").glob("*.py"):
+    for py in (worktree_path / ".config/quickshell/angelos/scripts").glob("*.py"):
         rc = subprocess.run([sys.executable, "-m", "py_compile", str(py)]).returncode
         if rc != 0:
             return False, f"Python syntax check failed on {py.name}"
@@ -134,12 +134,24 @@ def validate_experimental():
         return False, "Niri validation failed"
 
     # 4. QML check
-    qml_script = REPO_DIR / ".config/quickshell/angelos/scripts/qml-check.sh"
+    qml_script = worktree_path / ".config/quickshell/angelos/scripts/qml-check.sh"
     if qml_script.exists():
-        rc = subprocess.run(["bash", str(qml_script), str(REPO_DIR / ".config/quickshell/angelos")],
+        rc = subprocess.run(["bash", str(qml_script), str(worktree_path / ".config/quickshell/angelos")],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         if rc.returncode != 0:
             return False, f"qml-check failed: {rc.stdout.strip()[:200]}"
+
+    # 5. Fast repository regression & sanity checks via check.sh
+    check_script = worktree_path / "scripts/check.sh"
+    if check_script.exists():
+        env = os.environ.copy()
+        env["SKIP_INSTALL_TEST"] = "1"
+        env["CHECK_JOBS"] = "4"
+        env["CHECK_ONLY"] = "syntax,hygiene,files,settings-tree,switch,goldengate"
+        rc = subprocess.run(["bash", str(check_script)], cwd=str(worktree_path),
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+        if rc.returncode != 0:
+            return False, f"Regression sanity checks failed: {rc.stdout.strip()[-200:]}"
 
     return True, "All validation checks passed"
 
@@ -176,7 +188,7 @@ def sync():
             return 1
 
         # Check validation in worktree
-        ok, reason = validate_experimental()
+        ok, reason = validate_experimental(worktree_dir)
         if ok:
             # Commit the merge and push to experimental
             merge_msg = f"chore(upstream): auto-sync upstream {upstream_sha[:8]} into experimental\n\nCommits:\n" + "\n".join(commits)
