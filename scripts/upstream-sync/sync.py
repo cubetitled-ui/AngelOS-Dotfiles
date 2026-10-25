@@ -179,15 +179,44 @@ def sync():
         ok, reason = validate_experimental()
         if ok:
             # Commit the merge and push to experimental
-            run(["git", "commit", "-m", f"chore(upstream): auto-sync upstream {upstream_sha[:8]} into experimental\n\nCommits:\n" + "\n".join(commits)], cwd=worktree_dir)
+            merge_msg = f"chore(upstream): auto-sync upstream {upstream_sha[:8]} into experimental\n\nCommits:\n" + "\n".join(commits)
+            run(["git", "commit", "-m", merge_msg], cwd=worktree_dir)
             run(["git", "push", FORK_REMOTE, EXPERIMENTAL_BRANCH], cwd=worktree_dir, check=True)
             print("[upstream-sync] Experimental branch successfully merged and pushed to GitHub!")
+
+            # Auto-merge clean updates into main and Eben if repo is clean
+            repo_status = run(["git", "status", "--porcelain"])
+            auto_merged_main = False
+            if not repo_status.stdout.strip():
+                try:
+                    # Switch to main and merge upstream
+                    run(["git", "checkout", "main"], check=True)
+                    m_res = run(["git", "merge", "--no-ff", "-m", f"Merge upstream {upstream_sha[:8]}: auto-sync\n\n" + "\n".join(commits), "origin/main"])
+                    if m_res.returncode == 0:
+                        # Also sync into Eben
+                        run(["git", "checkout", "Eben"], check=True)
+                        run(["git", "merge", "--ff-only", "main"], check=True)
+                        run(["git", "checkout", "main"], check=True)
+                        # Push main & Eben
+                        run(["git", "push", FORK_REMOTE, "main", "Eben"], check=True)
+                        auto_merged_main = True
+                        print("[upstream-sync] Successfully auto-merged and pushed to main & Eben!")
+                    else:
+                        run(["git", "merge", "--abort"])
+                        print("[upstream-sync] Auto-merge into main had conflicts; left in experimental only.")
+                except Exception as e:
+                    print(f"[upstream-sync] Failed to auto-merge to main: {e}")
+                    run(["git", "checkout", "main"])
             
             state["last_checked_sha"] = upstream_sha
             save_state(state)
 
-            msg = f"Новые обновления angelOS ({len(commits)} коммитов) успешно адаптированы и отправлены в experimental. Напиши агенту для мерджа в main!"
-            notify("angelOS: Новое обновление адаптировано!", msg)
+            if auto_merged_main:
+                msg = f"Обновление angelOS ({len(commits)} коммитов) успешно протестировано и влито в main и Eben!"
+                notify("angelOS: Обновление применено", msg)
+            else:
+                msg = f"Новые обновления angelOS ({len(commits)} коммитов) адаптированы в experimental. Напиши агенту для мерджа в main!"
+                notify("angelOS: Новое обновление адаптировано!", msg)
         else:
             print(f"[upstream-sync] Validation failed on merge ({reason}). Aborting automatic push.")
             run(["git", "merge", "--abort"], cwd=worktree_dir)
