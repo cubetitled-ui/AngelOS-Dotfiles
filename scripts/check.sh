@@ -33,11 +33,11 @@ search() {
   local regex="$1"; shift
   if command -v rg >/dev/null 2>&1; then
     # .git is a file in a git worktree ("gitdir: /home/…"), a folder otherwise
-    rg -n --hidden -g '!.git/**' -g '!.git' -g '!*.png' -g '!*.jpg' -g '!*.jpeg' -g '!*.webp' -g '!*.gif' \
-       -g '!*.ttf' -g '!*.otb' -g '!*.svg' -g '!*.cache' "$@" -- "$regex" "$ROOT"
+    (cd "$ROOT" && rg -n --hidden -g '!.git/**' -g '!.git' -g '!*.png' -g '!*.jpg' -g '!*.jpeg' -g '!*.webp' -g '!*.gif' \
+       -g '!*.ttf' -g '!*.otb' -g '!*.svg' -g '!*.cache' "$@" -- "$regex" .)
   else
-    grep -rInE --exclude-dir=.git --exclude=.git --exclude='*.png' --exclude='*.jpg' --exclude='*.gif' \
-         --exclude='*.ttf' --exclude='*.otb' -- "$regex" "$ROOT"
+    (cd "$ROOT" && grep -rInE --exclude-dir=.git --exclude=.git --exclude='*.png' --exclude='*.jpg' --exclude='*.gif' \
+         --exclude='*.ttf' --exclude='*.otb' -- "$regex" .)
   fi
 }
 
