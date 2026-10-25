@@ -25,7 +25,9 @@ CatPage {
             })) : []
     property string customPreset: ""
     heading: I18n.t("Окна", "Windows")
-    subtitle: I18n.t("Окна встают в колонки, которые прокручиваются вбок.", "Windows stand in columns that scroll sideways.")
+    // angel-niri's Desktop: the columns' settings, the throw and focus-follows-mouse do nothing there
+    readonly property bool desk: Niri.nativeMinimize && WindowConfig.floatAll
+    subtitle: desk ? I18n.t("Окна поверх друг друга, как в обычной системе.", "Windows over each other, as on a usual system.") : I18n.t("Окна встают в колонки, которые прокручиваются вбок.", "Windows stand in columns that scroll sideways.")
     CatGroup {
         name: "closing-windows"
         title: I18n.t("Кнопки окон на панели", "Window buttons on the bar")
@@ -328,15 +330,49 @@ CatPage {
             checked: WindowConfig.floatAll
             onToggled: c => WindowConfig.setFloatAll(c)
         }
+        CatChoice {
+            present: Niri.nativeMinimize && WindowConfig.floatAll
+            label: I18n.t("Кнопки окна", "Window buttons")
+            hint: I18n.t("красная, жёлтая и зелёная на заголовках окон", "The red, yellow and green buttons on the title bars")
+            model: [
+                {
+                    "label": I18n.t("Слева, как Mac", "Left, like a Mac"),
+                    "value": "left"
+                },
+                {
+                    "label": I18n.t("Справа, как Windows", "Right, like Windows"),
+                    "value": "right"
+                }
+            ]
+            currentValue: Config.windows.titleButtons
+            onActivated: v => Config.windows.titleButtons = v
+        }
+        CatChoice {
+            present: Niri.nativeMinimize && WindowConfig.floatAll
+            label: I18n.t("Зелёная кнопка", "The green button")
+            hint: Config.windows.green === "fullscreen" ? I18n.t("окно уходит в полный экран на свой рабочий стол, как в macOS; выйдешь — вернётся на место. Задержи мышь на зелёной — меню: полный экран, развернуть, половина экрана, другой монитор", "The window goes full screen on a desk of its own, as in macOS, and comes back when it leaves. Rest the pointer on the green button for a menu: full screen, maximize, half the screen, another monitor") : I18n.t("разворачивает окно на весь экран (двойной клик по заголовку — тоже). Задержи мышь на зелёной — меню: полный экран, развернуть, половина экрана, другой монитор", "Maximizes the window (so does a double click on the title). Rest the pointer on the green button for a menu: full screen, maximize, half the screen, another monitor")
+            model: [
+                {
+                    "label": I18n.t("Развернуть", "Maximize"),
+                    "value": "maximize"
+                },
+                {
+                    "label": I18n.t("Полный экран", "Full screen"),
+                    "value": "fullscreen"
+                }
+            ]
+            currentValue: Config.windows.green
+            onActivated: v => Config.windows.green = v
+        }
         CatToggle {
-            present: Niri.nativeMinimize
+            present: Niri.nativeMinimize && !page.desk
             label: I18n.t("Бросок окна", "Throwing windows")
-            hint: I18n.t("отпустил плавающее окно на ходу — оно летит дальше, отскакивает от краёв монитора и сплющивается о них; пока тащишь, отстаёт и колышется, как желе", "Let go of a floating window mid-drag and it flies on, bouncing off the monitor's edges and squashing against them; while dragged it lags and sways like jelly")
+            hint: I18n.t("Отпущенное на ходу окно летит дальше и отскакивает от краёв.", "A window let go mid-drag flies on and bounces off the edges.")
             checked: Config.windows.throwOn
             onToggled: c => Config.windows.throwOn = c
         }
         CatSlider {
-            present: Niri.nativeMinimize && Config.windows.throwOn
+            present: Niri.nativeMinimize && !page.desk && Config.windows.throwOn
             label: I18n.t("Сила броска", "Throw strength")
             hint: I18n.t("насколько далеко улетает окно: чуть скользит … через весь экран", "How far a window flies: barely slides … across the screen")
             from: 10
@@ -347,7 +383,7 @@ CatPage {
             onReleased: v => Config.windows.throwStrength = v / 100
         }
         CatSlider {
-            present: Niri.nativeMinimize && Config.windows.throwOn
+            present: Niri.nativeMinimize && !page.desk && Config.windows.throwOn
             label: I18n.t("Отскок от краёв", "Bounce off edges")
             hint: I18n.t("0 — окно упирается в край и останавливается", "0: the window stops at the edge")
             from: 0
@@ -358,7 +394,7 @@ CatPage {
             onReleased: v => Config.windows.throwBounce = v / 100
         }
         CatSlider {
-            present: Niri.nativeMinimize && Config.windows.throwOn
+            present: Niri.nativeMinimize && !page.desk && Config.windows.throwOn
             label: I18n.t("Сплющивание при ударе", "Squash on impact")
             hint: I18n.t("0 — без сплющивания", "0: no squash")
             from: 0
@@ -369,7 +405,7 @@ CatPage {
             onReleased: v => Config.windows.throwSquash = v / 100
         }
         CatSlider {
-            present: Niri.nativeMinimize && Config.windows.throwOn
+            present: Niri.nativeMinimize && !page.desk && Config.windows.throwOn
             label: I18n.t("Колыхание при перетаскивании", "Sway while dragging")
             hint: I18n.t("0 — окно идёт ровно за мышью", "0: the window follows the mouse exactly")
             from: 0
@@ -389,7 +425,7 @@ CatPage {
         enabled: !WindowConfig.busy
         CatChoice {
             label: I18n.t("Рамка", "Frame")
-            hint: I18n.t("«У активного» — рамка вокруг окна, в котором работаешь; «У всех» — пиксельная рамка у каждого, у активного цветом акцента", "Focused: a frame around the window you work in; Every window: a pixel border on each, the focused one in the accent")
+            hint: I18n.t("Рамка только у окна, в котором работаешь, или у всех окон.", "A frame on the window you work in only, or on every window.")
             model: [
                 {"label": I18n.t("У активного", "Focused"), "value": "focus"},
                 {"label": I18n.t("У всех", "Every window"), "value": "all"},
@@ -403,7 +439,7 @@ CatPage {
         CatToggle {
             present: Niri.nativeMinimize && !GoldenGate.on
             label: I18n.t("Пиксельные углы", "Pixel corners")
-            hint: I18n.t("углы окон лесенкой из двух ступенек — как у кнопок и полей тем GTK и Qt; свои окна angelOS остаются прямоугольными", "Window corners as a two-step staircase, like the GTK and Qt themes' buttons and fields; angelOS's own windows stay square")
+            hint: I18n.t("Углы окон программ — пиксельной лесенкой.", "App window corners as a pixel staircase.")
             checked: Config.windows.pixelCorners
             onToggled: c => Config.windows.pixelCorners = c
         }
@@ -468,7 +504,7 @@ CatPage {
         present: Niri.nativeMinimize
         CatToggle {
             label: I18n.t("Программы на своих местах", "Programs in their places")
-            hint: I18n.t("закреплённая программа открывает первое окно на своём мониторе и столе, и ты переходишь туда же. Закрепить — ПКМ по окну на панели → «Всегда открывать здесь» или ниже. Выключено — места не забываются, просто не действуют", "A pinned program opens its first window on its monitor and desk, and you go there with it. Pin one: right-click its window on the taskbar → Always open here, or below. Off, the places are kept but do nothing")
+            hint: I18n.t("Закреплённая программа открывается на своём мониторе и столе. Закрепить — ПКМ по окну на панели.", "A pinned app opens on its own monitor and desk. Pin it by right-clicking it on the taskbar.")
             checked: Config.windows.remember
             onToggled: c => Config.windows.remember = c
         }
@@ -571,11 +607,13 @@ CatPage {
     CatGroup {
         name: "layout"
         title: I18n.t("Колонки и отступы", "Columns and gaps")
+        present: !page.desk
         advanced: true
         icon: "window"
         enabled: !WindowConfig.busy
         CatChoice {
             label: I18n.t("Центрировать активную колонку", "Center the focused column")
+            hint: I18n.t("Ставить окно в фокусе посередине экрана.", "Put the focused window in the middle of the screen.")
             combo: true
             model: [
                 {
@@ -609,6 +647,7 @@ CatPage {
         }
         CatToggle {
             label: I18n.t("Фокус следует за мышью", "Focus follows the mouse")
+            hint: I18n.t("Окно получает фокус, когда на него наводишь мышь, без клика.", "A window gets focus when you point at it, no click needed.")
             checked: InputConfig.focusFollowsMouse
             onToggled: c => InputConfig.save({
                     focusFollowsMouse: c
@@ -618,6 +657,7 @@ CatPage {
     CatGroup {
         name: "window-widths"
         title: I18n.t("Ширина окон", "Window widths")
+        present: !page.desk
         advanced: true
         icon: "layers"
         enabled: !WindowConfig.busy
@@ -745,7 +785,8 @@ CatPage {
             onToggled: c => Config.decor.gtkButtons = c
         }
         CatChoice {
-            present: Config.decor.gtkButtons
+            // Desktop on a pixel skin: always _ □ X (services/ThemeExport)
+            present: Config.decor.gtkButtons && !(WindowConfig.floatAll && !GoldenGate.on)
             label: I18n.t("Кнопки в заголовке", "Title bar buttons")
             model: [
                 {
@@ -781,7 +822,7 @@ CatPage {
             }
             present: !Angel.hellShown
             label: I18n.t("Цвет панели браузера", "The browser's bar colour")
-            hint: I18n.t("панель Helium и Chromium и открытая вкладка. В режиме «GTK» меняется сразу; в теме с заметной вкладкой — при следующем запуске браузера. «Авто» — чуть ярче заголовков окон", "The bar of Helium and Chromium and the open tab. On the “GTK” theme it changes at once; in the theme with a visible tab, at the browser's next start. “Auto”: a step brighter than the title bars")
+            hint: I18n.t("Цвет панели и вкладки Helium и Chromium. «Авто» — чуть ярче заголовков окон.", "The colour of Helium's and Chromium's bar and tab. Auto: a bit brighter than titles.")
             CatBox {
                 Flow {
                     width: parent.width
@@ -1024,7 +1065,7 @@ CatPage {
             property bool copied: false
             present: telegramStatus.info.installed === true
             label: "Telegram"
-            hint: I18n.t("тема angelOS для Telegram, меняется вместе с темой. Один раз: «Скопировать путь» → Telegram → Настройки чатов → ⋮ → «Выбрать из файла». Авто-ночной режим Telegram лучше выключить.", "angelOS's theme for Telegram, follows the theme. Once: Copy path → Telegram → Chat settings → ⋮ → Choose from file. Better switch Telegram's auto night mode off.")
+            hint: I18n.t("Тема angelOS для Telegram. Один раз: «Скопировать путь» → Telegram → Настройки чатов → из файла.", "angelOS's theme for Telegram. Once: Copy path → Telegram → Chat settings → from file.")
             CatBox {
                 Flow {
                     width: parent.width
@@ -1073,7 +1114,7 @@ CatPage {
             property string said: ""
             present: steamStatus.info.millennium === true
             label: "Steam"
-            hint: I18n.t("тема angelOS для Steam через Millennium, меняется вместе с темой. Один раз: Steam → Millennium → Темы → angelOS или «Сделать активной» при закрытом Steam.", "angelOS's theme for Steam through Millennium, follows the theme. Once: Steam → Millennium → Themes → angelOS, or Make it active with Steam closed.")
+            hint: I18n.t("Тема angelOS для Steam через Millennium. Один раз: Millennium → Темы → angelOS.", "angelOS's theme for Steam via Millennium. Once: Millennium → Themes → angelOS.")
             CatBox {
                 Flow {
                     width: parent.width
@@ -1131,7 +1172,7 @@ CatPage {
             readonly property bool launcherOn: info.launcher === true
             present: info.found === true
             label: "Discord / Vesktop"
-            hint: I18n.t("тема angelOS для Discord и Vesktop, меняется вместе с темой. С Vencord: Vencord → Темы → angelOS или «Сделать активной» при закрытом Discord. Без Vencord — только если запускать Discord из angelOS.", "angelOS's theme for Discord and Vesktop, follows the theme. With Vencord: Vencord → Themes → angelOS, or Make it active with Discord closed. Without Vencord: only when angelOS starts Discord.")
+            hint: I18n.t("Тема angelOS для Discord. С Vencord: Темы → angelOS. Без него — если Discord запущен из angelOS.", "angelOS's theme for Discord. With Vencord: Themes → angelOS. Without: when angelOS starts it.")
             CatBox {
                 Flow {
                     width: parent.width
@@ -1243,6 +1284,7 @@ CatPage {
         }
         CatToggle {
             label: I18n.t("Паутина на окнах", "Cobwebs on windows")
+            hint: I18n.t("Окна, которые долго не двигали, оплетает паук. Подвигай окно — паутина слетит.", "A spider webs over windows left unmoved for long. Move one to shake it off.")
             checked: Config.windows.cobweb
             onToggled: c => Config.windows.cobweb = c
         }
@@ -1263,6 +1305,7 @@ CatPage {
         CatChoice {
             present: Config.windows.cobweb
             label: I18n.t("Как быстро растёт", "How fast it grows")
+            hint: I18n.t("Когда появляются первые нити и когда окно скрывается целиком.", "When the first threads appear and when the whole window is covered.")
             model: [
                 {
                     "label": I18n.t("10 мин → 1 ч", "10 min → 1 h"),
@@ -1283,7 +1326,7 @@ CatPage {
         CatChoice {
             present: Config.windows.cobweb
             label: I18n.t("Вид кокона", "Cocoon look")
-            hint: I18n.t("стандартный — точечная сетка, как было; шёлк — провисающие нити с перемычками. Окна возьмут новый вид после «Показать сейчас» или перезапуска", "Classic is the dotted grid it always was; silk is sagging strands with ties. Windows take the new look with «Show me now» or after a restart")
+            hint: I18n.t("Точечная сетка или провисающие нити. Сменится после «Показать сейчас» или перезапуска.", "A dotted grid or sagging strands. Changes after Show me now or a restart.")
             model: [
                 {
                     "label": I18n.t("Стандартный", "Classic"),
