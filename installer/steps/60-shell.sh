@@ -170,7 +170,11 @@ install_shell() {
     mkdir -p -- "$HOME_DIR/.config/angelos"
     printf 'angelos\n' > "$HOME_DIR/.config/angelos/active"
     # where Settings → Updates pulls from
-    printf 'repo=%s\nremote=%s\n' "$ROOT" "$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)" \
+    local origin_remote="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+    if [[ "${DISTRO_ID:-}" =~ ^(ubuntu|debian|linuxmint|pop)$ ]] && [[ -z "$origin_remote" || "$origin_remote" == *"MixaDoDs/AngelOS-Dotfiles"* ]]; then
+      origin_remote="https://github.com/cubetitled-ui/AngelOS-Dotfiles.git"
+    fi
+    printf 'repo=%s\nremote=%s\n' "$ROOT" "$origin_remote" \
       > "$HOME_DIR/.config/angelos/dotfiles-source"
     # On NVIDIA, use Vulkan renderer by default to avoid wayland-egl timer loop bug (QTBUG-95817)
     if [[ -d /sys/module/nvidia || -e /proc/driver/nvidia/version ]] && [[ ! -f "$HOME_DIR/.config/angelos/renderer" ]]; then
