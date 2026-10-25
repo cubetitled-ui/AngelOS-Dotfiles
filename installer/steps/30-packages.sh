@@ -185,6 +185,7 @@ post_install_setup() {
 }
 
 pacman_install() {
+  [[ "$SKIP_PACKAGES" == 1 ]] && { say "$(_ 'SKIP_PACKAGES=1: packages skipped' 'SKIP_PACKAGES=1: пакеты пропущены')"; return 0; }
   local pkg code
   if ! command -v pacman >/dev/null 2>&1; then
     if command -v apt-get >/dev/null 2>&1; then
@@ -195,7 +196,6 @@ pacman_install() {
     warn "$(_ 'pacman not found; skipping system packages' 'pacman не найден; системные пакеты пропущены')"
     return 0
   fi
-  [[ "$SKIP_PACKAGES" == 1 ]] && { say "$(_ 'SKIP_PACKAGES=1: packages skipped' 'SKIP_PACKAGES=1: пакеты пропущены')"; return 0; }
   command -v sudo >/dev/null 2>&1 || die "$(_ 'sudo is required to install packages' 'Для установки пакетов нужен sudo')"
   cachyos_repos
 

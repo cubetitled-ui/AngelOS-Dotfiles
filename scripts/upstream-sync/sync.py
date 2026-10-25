@@ -114,26 +114,73 @@ def analyze_diff(old_sha, new_sha):
 
 
 def validate_experimental(worktree_path=REPO_DIR):
-    """Run comprehensive validation checks on the current worktree"""
-    # 1. Shell scripts check
-    for sh in [worktree_path / "install.sh", worktree_path / "installer/steps/30-packages.sh", worktree_path / "installer/steps/60-shell.sh"]:
-        if sh.exists():
-            rc = subprocess.run(["bash", "-n", str(sh)]).returncode
-            if rc != 0:
-                return False, f"Bash syntax check failed on {sh.name}"
+    """Run comprehensive validation checks on the current worktree:
+    1. Fork purity & companion exclusion (zero companion)
+    2. Ubuntu & audio fork invariants (05-distro, wireplumber conf, 30-packages)
+    3. Niri validation on config.kdl and niri-mac.kdl
+    4. Python syntax & compilation across scripts and tools
+    5. Shell syntax (bash -n) across all installer and utility scripts
+    6. Quickshell QML check (qml-check.sh)
+    7. Upstream sanity test suite (31 check.sh modules)
+    8. Dry-run Ubuntu installation in isolated sandbox
+    """
+    # 1. Purity: zero presence of companion in repo
+    res = subprocess.run(["git", "grep", "-i", "-E", "anti" + "gravity", "--", ":(exclude)scripts/upstream-sync/sync.py"],
+                         cwd=str(worktree_path), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if res.stdout.strip():
+        return False, f"Fork purity violation: antigravity references found:\n{res.stdout[:200]}"
 
-    # 2. Python compile
-    for py in (worktree_path / ".config/quickshell/angelos/scripts").glob("*.py"):
-        rc = subprocess.run([sys.executable, "-m", "py_compile", str(py)]).returncode
+    # 2. Ubuntu fork invariants
+    distro_sh = worktree_path / "installer/steps/05-distro.sh"
+    if distro_sh.exists() and "ubuntu" not in distro_sh.read_text(errors="ignore"):
+        return False, "Ubuntu support missing from installer/steps/05-distro.sh"
+
+    wp_conf = worktree_path / ".config/wireplumber/wireplumber.conf.d/50-alsa-profile-priority.conf"
+    if not wp_conf.exists():
+        return False, "Wireplumber ALSA priority configuration missing"
+
+    # 3. Niri validate both standard and GoldenGate variants
+    for kdl in [worktree_path / ".config/niri/config.kdl", worktree_path / ".config/niri/niri-mac.kdl"]:
+        if kdl.exists():
+            rc = subprocess.run(["niri", "validate", "-c", str(kdl)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+            if rc != 0:
+                return False, f"Niri validation failed on {kdl.name}"
+
+    # 4. Shell syntax check across all scripts
+    sh_files = list((worktree_path / "installer/steps").glob("*.sh"))
+    sh_files += [worktree_path / "install.sh", worktree_path / ".install"]
+    if (worktree_path / ".local/bin").exists():
+        for p in (worktree_path / ".local/bin").iterdir():
+            if p.is_file() and not p.is_symlink():
+                sh_files.append(p)
+    for sh in sh_files:
+        if sh.exists():
+            try:
+                first_line = sh.read_bytes().split(b"\n", 1)[0].strip()
+                if sh.suffix == ".sh" or (first_line.startswith(b"#!") and (first_line.endswith(b"bash") or first_line.endswith(b"sh"))):
+                    rc = subprocess.run(["bash", "-n", str(sh)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
+                    if rc != 0:
+                        return False, f"Bash syntax check failed on {sh.name}"
+            except Exception:
+                pass
+
+    # 5. Python compile across all scripts
+    py_files = list((worktree_path / ".config/quickshell/angelos/scripts").glob("*.py"))
+    py_files += list((worktree_path / "scripts").glob("*.py"))
+    if (worktree_path / ".local/bin").exists():
+        for p in (worktree_path / ".local/bin").iterdir():
+            if p.is_file() and not p.is_symlink():
+                try:
+                    if b"python" in p.read_bytes()[:64]:
+                        py_files.append(p)
+                except Exception:
+                    pass
+    for py in py_files:
+        rc = subprocess.run([sys.executable, "-m", "py_compile", str(py)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
         if rc != 0:
             return False, f"Python syntax check failed on {py.name}"
 
-    # 3. Niri validate
-    rc = subprocess.run(["niri", "validate"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode
-    if rc != 0:
-        return False, "Niri validation failed"
-
-    # 4. QML check
+    # 6. QML check
     qml_script = worktree_path / ".config/quickshell/angelos/scripts/qml-check.sh"
     if qml_script.exists():
         rc = subprocess.run(["bash", str(qml_script), str(worktree_path / ".config/quickshell/angelos")],
@@ -141,17 +188,50 @@ def validate_experimental(worktree_path=REPO_DIR):
         if rc.returncode != 0:
             return False, f"qml-check failed: {rc.stdout.strip()[:200]}"
 
-    # 5. Fast repository regression & sanity checks via check.sh
+    # 7. Comprehensive regression suite via check.sh (31 jobs)
     check_script = worktree_path / "scripts/check.sh"
     if check_script.exists():
         env = os.environ.copy()
         env["SKIP_INSTALL_TEST"] = "1"
         env["CHECK_JOBS"] = "4"
-        env["CHECK_ONLY"] = "syntax,hygiene,files,settings-tree,switch,goldengate"
+        env["CHECK_ONLY"] = (
+            "syntax,files,hygiene,settings-tree,settings-search,sddm-stamp,caps,keycast,"
+            "discord-voice,discord-cdp,goldengate,mac-icons,browsers,setup,setup-browser,"
+            "qt-look,file-chooser,switch,telegram-push,peripherals,privacy,vault,autostart,"
+            "calc,appmenu,appmenu-profiles,programs,sprite-rig,sideload,author-tools,self-update"
+        )
         rc = subprocess.run(["bash", str(check_script)], cwd=str(worktree_path),
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
         if rc.returncode != 0:
             return False, f"Regression sanity checks failed: {rc.stdout.strip()[-200:]}"
+
+    # 8. End-to-End Ubuntu installer dry-run in isolated sandbox
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="angelos-sync-val-") as tmp:
+        env = os.environ.copy()
+        env.update({
+            "HOME": tmp,
+            "DOTFILES_DIR": str(worktree_path),
+            "SKIP_PACKAGES": "1",
+            "INSTALL_VOXTYPE": "0",
+            "DOWNLOAD_VOXTYPE_MODEL": "0",
+            "ANGELOS_SELF_UPDATE": "0",
+            "ENABLE_SERVICES": "0",
+            "INSTALL_WALLPAPERS": "0",
+            "INSTALL_SDDM": "0",
+            "INTRO_SOUNDS": "0",
+            "ANGEL_NIRI": "0",
+            "ANGELOS_NONINTERACTIVE": "1",
+            "DOTFILES_STAMP": "20261025-120000",
+        })
+        res = subprocess.run(["bash", str(worktree_path / "install.sh")],
+                             cwd=tmp, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        if res.returncode != 0:
+            return False, f"Dry-run installer failed:\n{res.stdout[-300:]}"
+        if not (Path(tmp) / ".config/niri/config.kdl").exists():
+            return False, "Dry-run installer failed to produce .config/niri/config.kdl"
+        if not (Path(tmp) / ".config/quickshell/angelos/shell.qml").exists():
+            return False, "Dry-run installer failed to produce quickshell shell.qml"
 
     return True, "All validation checks passed"
 
