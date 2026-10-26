@@ -243,6 +243,115 @@ def validate_experimental(worktree_path=REPO_DIR):
     return True, "All validation checks passed"
 
 
+def inject_local_extensions(target_repo):
+    """Accurately enable Antigravity / Gemini provider in Plugin Studio if agy CLI is present locally.
+    Does not modify git index, zero hardcoded dependency, graceful fallback."""
+    studio_py = target_repo / ".config/quickshell/angelos/scripts/plugin-studio.py"
+    if not studio_py.exists():
+        return
+
+    content = studio_py.read_text()
+    if 'gemini-cli' in content:
+        return
+
+    # Add CLI provider entry
+    content = content.replace(
+        'CLI_PROVIDERS = ("claude-cli", "codex-cli")',
+        'CLI_PROVIDERS = ("claude-cli", "codex-cli", "gemini-cli")'
+    )
+
+    # Add Gemini models list
+    gemini_models_def = '''GEMINI_CLI_MODELS = [
+    {"id": "", "label": "Gemini (agy default)", "efforts": ["low", "medium", "high", "max"], "default": ""},
+    {"id": "gemini-3.8-flash-low", "label": "Gemini 3.8 Flash (Low)", "efforts": ["low"], "default": "low", "speed": "fast"},
+    {"id": "gemini-3.8-flash-medium", "label": "Gemini 3.8 Flash (Med)", "efforts": ["low", "medium"], "default": "medium", "speed": "balanced"},
+    {"id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)", "efforts": ["low", "medium", "high", "max"], "default": "high", "speed": "smart"},
+]
+'''
+    if 'CLAUDE_CLI_MODELS = [' in content:
+        content = content.replace('CLAUDE_CLI_MODELS = [', gemini_models_def + 'CLAUDE_CLI_MODELS = [')
+
+    # Add agy detection in cli_status()
+    cli_status_patch = '''    status["gemini-cli"] = entry
+    agy_bin = cli_path("agy")
+    agy_entry = {"installed": bool(agy_bin), "loggedIn": False, "method": ""}
+    if agy_bin:
+        try:
+            r = subprocess.run([agy_bin, "--version"], capture_output=True, text=True, timeout=10)
+            agy_entry["installed"] = r.returncode == 0
+            agy_entry["loggedIn"] = r.returncode == 0
+            agy_entry["method"] = "antigravity"
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    status["gemini-cli"] = agy_entry'''
+    if 'status["codex-cli"] = entry' in content:
+        content = content.replace('status["codex-cli"] = entry', cli_status_patch)
+
+    # Add models_catalog entry
+    if '"codex-cli": codex' in content:
+        content = content.replace('"codex-cli": codex', '"codex-cli": codex, "gemini-cli": GEMINI_CLI_MODELS')
+
+    # Add run_cli support for gemini-cli / agy
+    agy_branch = '''    elif provider == "gemini-cli":
+        binary = cli_path("agy")
+        if not binary:
+            raise StudioError("Antigravity CLI (agy) is not installed.", "Antigravity CLI (agy) не установлен.")
+        argv = [binary, "--output-format", "json", "--json-schema", json.dumps(schema)]
+        if model:
+            argv += ["--model", model]
+        if effort and effort in ("low", "medium", "high", "max"):
+            argv += ["--effort", effort]
+        argv += ["-p", "INSTRUCTIONS:\\n" + system + "\\n\\nCONVERSATION:\\n" + transcript(messages)]
+        prompt = ""
+'''
+    if '    else:\n        binary = cli_path("codex")' in content:
+        content = content.replace('    else:\n        binary = cli_path("codex")', agy_branch + '    else:\n        binary = cli_path("codex")')
+
+    agy_parser = '''    if provider == "gemini-cli":
+        if done.returncode:
+            raise StudioError("agy failed: " + tail[0][:300], "agy: ошибка: " + tail[0][:300])
+        try:
+            data = json.loads(done.stdout)
+            val = data.get("structured_output")
+            if val is None:
+                resp_text = data.get("response", "")
+                if "```json" in resp_text:
+                    resp_text = resp_text.split("```json")[1].split("```")[0].strip()
+                val = json.loads(resp_text)
+            usage = data.get("usage") or {}
+            return val, {"input_tokens": int(usage.get("input_tokens") or 0), "output_tokens": int(usage.get("output_tokens") or 0)}
+        except Exception:
+            raise StudioError("agy returned invalid JSON.", "agy не вернул корректный JSON.")
+'''
+    if '    if provider == "claude-cli":' in content:
+        content = content.replace('    if provider == "claude-cli":', agy_parser + '    if provider == "claude-cli":')
+
+    studio_py.write_text(content)
+
+    # Also update PluginStudio.qml in target
+    qml_file = target_repo / ".config/quickshell/angelos/services/PluginStudio.qml"
+    if qml_file.exists():
+        qml_text = qml_file.read_text()
+        if 'gemini-cli' not in qml_text:
+            qml_text = qml_text.replace(
+                '{label: I18n.t("Claude · вход через браузер", "Claude · browser sign-in"), value: "claude-cli"},',
+                '{label: I18n.t("Claude · вход через браузер", "Claude · browser sign-in"), value: "claude-cli"},\n        {label: I18n.t("Gemini · вход через Antigravity", "Gemini · Antigravity sign-in"), value: "gemini-cli"},'
+            )
+            qml_text = qml_text.replace(
+                'Config.developer.provider === "codex-cli"',
+                'Config.developer.provider === "codex-cli" || Config.developer.provider === "gemini-cli"'
+            )
+            qml_text = qml_text.replace(
+                '"codex-cli": Config.developer.codexCliModel',
+                '"codex-cli": Config.developer.codexCliModel,\n            "gemini-cli": (Config.developer.geminiCliModel !== undefined ? Config.developer.geminiCliModel : "")'
+            )
+            qml_text = qml_text.replace(
+                '"codex-cli": "codexCliModel"',
+                '"codex-cli": "codexCliModel",\n                "gemini-cli": "geminiCliModel"'
+            )
+            qml_file.write_text(qml_text)
+
+
 def sync():
     has_new, upstream_sha, commits = check_upstream_api()
     if not has_new:
@@ -312,6 +421,8 @@ def sync():
             save_state(state)
 
             if auto_merged_main:
+                # Apply local extensions to workspace if agy is present
+                inject_local_extensions(Path.home())
                 msg = f"Обновление angelOS ({len(commits)} коммитов) успешно протестировано и влито в main и Eben!"
                 notify("angelOS: Обновление применено", msg)
             else:
