@@ -114,7 +114,7 @@ CatPage {
                             width: (parent.width - (parent.columns - 1) * parent.spacing) / parent.columns
                             height: atCol.implicitHeight + Theme.u * 8
                             sunken: current
-                            color: current ? Theme.mix(Theme.tone("face", Theme.p5For(parent)), Theme.accent, 0.3) : atMouse.containsMouse ? Theme.mix(Theme.tone("face", Theme.p5For(parent)), Theme.accent, 0.1) : Theme.tone("face", Theme.p5For(parent))
+                            color: current ? Theme.mix(Theme.toneFor("face", parent), Theme.accent, 0.3) : atMouse.containsMouse ? Theme.mix(Theme.toneFor("face", parent), Theme.accent, 0.1) : Theme.toneFor("face", parent)
                             Column {
                                 id: atCol
                                 x: Theme.u * 4
@@ -203,7 +203,7 @@ CatPage {
                         width: Theme.u * 200
                         wrapMode: Text.Wrap
                         kind: "tiny"
-                        color: AltTab.watcherStatus === "noperm" ? Theme.danger : Theme.tone("textDim", Theme.p5For(parent))
+                        color: AltTab.watcherStatus === "noperm" ? Theme.danger : Theme.toneFor("textDim", parent)
                         text: AltTab.watcherStatus === "noperm" ? I18n.t("нет доступа к клавиатуре (группа input): отпускание Alt ловится только самим окошком — если оно не успело открыться, выбери окно Enter или кликом", "No keyboard access (the input group): only the switcher itself sees Alt being let go — if it was not open yet, pick with Enter or a click") : AltTab.log
                     }
                 }
@@ -330,39 +330,12 @@ CatPage {
             checked: WindowConfig.floatAll
             onToggled: c => WindowConfig.setFloatAll(c)
         }
-        CatChoice {
-            present: Niri.nativeMinimize && WindowConfig.floatAll
-            label: I18n.t("Кнопки окна", "Window buttons")
-            hint: I18n.t("красная, жёлтая и зелёная на заголовках окон", "The red, yellow and green buttons on the title bars")
-            model: [
-                {
-                    "label": I18n.t("Слева, как Mac", "Left, like a Mac"),
-                    "value": "left"
-                },
-                {
-                    "label": I18n.t("Справа, как Windows", "Right, like Windows"),
-                    "value": "right"
-                }
-            ]
-            currentValue: Config.windows.titleButtons
-            onActivated: v => Config.windows.titleButtons = v
-        }
-        CatChoice {
-            present: Niri.nativeMinimize && WindowConfig.floatAll
-            label: I18n.t("Зелёная кнопка", "The green button")
-            hint: Config.windows.green === "fullscreen" ? I18n.t("окно уходит в полный экран на свой рабочий стол, как в macOS; выйдешь — вернётся на место. Задержи мышь на зелёной — меню: полный экран, развернуть, половина экрана, другой монитор", "The window goes full screen on a desk of its own, as in macOS, and comes back when it leaves. Rest the pointer on the green button for a menu: full screen, maximize, half the screen, another monitor") : I18n.t("разворачивает окно на весь экран (двойной клик по заголовку — тоже). Задержи мышь на зелёной — меню: полный экран, развернуть, половина экрана, другой монитор", "Maximizes the window (so does a double click on the title). Rest the pointer on the green button for a menu: full screen, maximize, half the screen, another monitor")
-            model: [
-                {
-                    "label": I18n.t("Развернуть", "Maximize"),
-                    "value": "maximize"
-                },
-                {
-                    "label": I18n.t("Полный экран", "Full screen"),
-                    "value": "fullscreen"
-                }
-            ]
-            currentValue: Config.windows.green
-            onActivated: v => Config.windows.green = v
+        CatToggle {
+            present: Niri.nativeMinimize
+            label: I18n.t("Не сворачивать окно при копировании", "Don't minimize a window on copy")
+            hint: I18n.t("Программа, которая сворачивается сразу после копирования (менеджер паролей), остаётся на месте. Своя кнопка «свернуть» у программ работает как всегда.", "An app that minimizes itself right after copying (a password manager) stays put. Apps' own minimize buttons work as always.")
+            checked: Config.windows.keepOnCopy
+            onToggled: c => Config.windows.keepOnCopy = c
         }
         CatToggle {
             present: Niri.nativeMinimize && !page.desk
@@ -837,7 +810,7 @@ CatPage {
                             height: Theme.u * 8
                             color: barRow.shown
                             border.width: Math.max(1, Theme.u / 2)
-                            border.color: Theme.tone("edge", Theme.p5For(parent))
+                            border.color: Theme.toneFor("edge", parent)
                         }
                     }
                     PxButton {
@@ -1432,7 +1405,7 @@ CatPage {
                         width: Theme.u * 200
                         wrapMode: Text.Wrap
                         kind: "tiny"
-                        color: Cobweb.shakeStatus === "noperm" ? Theme.danger : Theme.tone("textDim", Theme.p5For(parent))
+                        color: Cobweb.shakeStatus === "noperm" ? Theme.danger : Theme.toneFor("textDim", parent)
                         text: Cobweb.shakeStatus === "noperm" ? I18n.t("нет доступа к мыши (группа input): тряску окна не видно — смахнуть паутину можно из меню кнопки окна (ПКМ)", "No access to the mouse (the input group): shaking a window can't be seen — sweep the web from the window button's menu (right click)") : Cobweb.webCount > 0 ? I18n.t("паутина на окнах: ", "webs on windows: ") + Cobweb.webCount : ""
                     }
                 }
