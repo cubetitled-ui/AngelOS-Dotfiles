@@ -32,6 +32,15 @@ Singleton {
 
     function stop() {
         running = false;
+        handIdle.restart();
+    }
+
+    // the virtual pointer (a Python process) only while scrolling, and a little after
+    Timer {
+        id: handIdle
+        interval: 30000
+        onTriggered: if (!root.running)
+            hand.running = false
     }
 
     function setSpeed(v) {
@@ -49,7 +58,7 @@ Singleton {
     Process {
         id: hand
         property bool ok: false
-        running: true
+        running: false
         stdinEnabled: true
         command: ["python3", "-u", Quickshell.shellDir + "/scripts/vpointer.py"]
         onRunningChanged: if (!running)

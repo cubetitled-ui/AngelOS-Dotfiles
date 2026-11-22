@@ -197,14 +197,30 @@ Singleton {
     // ---- Output: scripts/sfx-player.py, one long-lived stream for every sound. A pw-play per
     // sound made a new stream each click, and Discord sharing the screen with sound opened and
     // dropped a capture for each one: the share froze and Discord grew to 13 GB (2026-10-07).
-    // pw-play stays as the fallback while the player isn't up.
+    // pw-play stays as the fallback while the player can't start.
+    // Started on the first sound and stopped after a minute of quiet (not while music loops):
+    // with sounds off the player (a Python process, ~25 MB) no longer sits in memory for nothing.
+    property var _sfxPending: []
+    property string _sfxLoop: ""             // the loop line playing now, sent again after a restart
     Process {
         id: sfx
-        running: Config.ready
+        running: false
         stdinEnabled: true
         command: ["python3", "-u", Quickshell.shellDir + "/scripts/sfx-player.py"]
-        onExited: if (Config.ready && !sfxRestart.running)
-            sfxRestart.start()
+        onStarted: {
+            const lines = root._sfxPending;
+            root._sfxPending = [];
+            if (root._sfxLoop)
+                sfx.write(root._sfxLoop);
+            for (const l of lines)
+                sfx.write(l);
+            sfxIdle.restart();
+        }
+        onExited: {
+            root._sfxPending = [];
+            if (Config.ready && root._sfxLoop && !sfxRestart.running)
+                sfxRestart.start();
+        }
     }
     Timer {
         id: sfxRestart
@@ -212,11 +228,31 @@ Singleton {
         onTriggered: if (Config.ready)
             sfx.running = true
     }
+    Timer {
+        id: sfxIdle
+        interval: 60000
+        onTriggered: if (!root._sfxLoop)
+            sfx.running = false
+    }
+    // up and done flushing (onStarted empties the queue): write straight away, else queue in order
+    readonly property bool _sfxUp: sfx.running && sfx.processId > 0 && _sfxPending.length === 0
+    function _send(line) {
+        if (root._sfxUp) {
+            sfx.write(line);
+        } else {
+            root._sfxPending = root._sfxPending.concat([line]);
+            sfx.running = true;
+        }
+        sfxIdle.restart();
+    }
     // the first of `paths` that exists plays
     function _out(vol, paths) {
-        if (!sfx.running)
+        if (!Config.ready)
             return false;
-        sfx.write(vol + "\t" + paths.join("\t") + "\n");
+        // volume 0 only warms a file: not worth starting the player for
+        if (!sfx.running && Number(vol) <= 0)
+            return true;
+        _send(vol + "\t" + paths.join("\t") + "\n");
         return true;
     }
 
@@ -229,8 +265,18 @@ Singleton {
     }
     // music round and round through the same stream (sfx-player's loop): `vol` 0 fades it out
     function loop(path, vol) {
-        if (sfx.running)
-            sfx.write("loop\t" + vol + "\t" + (path || "") + "\n");
+        const on = !!path && Number(vol) > 0;
+        if (!on && !sfx.running) {
+            root._sfxLoop = "";
+            return;
+        }
+        const line = "loop\t" + vol + "\t" + (path || "") + "\n";
+        root._sfxLoop = on ? line : "";
+        if (root._sfxUp)
+            sfx.write(line);
+        else if (on)
+            sfx.running = true;           // onStarted sends the loop line
+        sfxIdle.restart();
     }
 
     // yours first, then the skin's (pw-play, or paplay without it, if the player is down)

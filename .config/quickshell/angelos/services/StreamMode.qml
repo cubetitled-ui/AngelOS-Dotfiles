@@ -140,13 +140,30 @@ Singleton {
     Timer {
         id: rewatch
         interval: 300
-        onTriggered: watch.running = Qt.binding(() => Config.ready)
+        onTriggered: watch.running = Qt.binding(() => root.watchWanted)
+    }
+    // is OBS running? A pgrep every 10 s instead of a Python client knocking on a closed port
+    // all day: obs-watch.py comes up with OBS and leaves once OBS has said "down"
+    property bool obsAlive: false
+    readonly property bool watchWanted: Config.ready && (obsAlive || obsUp)
+    Process {
+        id: obsProbe
+        command: ["pgrep", "-x", "obs|obs-studio"]
+        onExited: code => root.obsAlive = code === 0
+    }
+    Timer {
+        interval: 10000
+        running: Config.ready
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!obsProbe.running)
+            obsProbe.running = true
     }
     Process {
         id: watch
-        // always, so the achievements and the hint know about OBS; stream mode itself still
-        // switches only with Config.stream.auto (`active` above)
-        running: Config.ready
+        // whenever OBS runs, so the achievements and the hint know about it; stream mode itself
+        // still switches only with Config.stream.auto (`active` above)
+        running: root.watchWanted
         command: ["python3", "-u", Quickshell.shellDir + "/scripts/obs-watch.py", "--port", String(Config.stream.port || 4455)]
         stdout: SplitParser {
             onRead: line => {
