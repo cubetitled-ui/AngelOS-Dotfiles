@@ -24,6 +24,9 @@ UPSTREAM_REPO = "MixaDoDs/AngelOS-Dotfiles"
 UPSTREAM_BRANCHES = ["main", "Eben"]
 FORK_REMOTE = "fork"
 EXPERIMENTAL_BRANCH = "experimental"
+UPSTREAM_REF = "upstream/main"
+# files the fork rewrites for itself (the Ubuntu port's READMEs): a conflict there keeps the fork's side
+FORK_OWNED = {"README.md", "README.ru.md"}
 STATE_DIR = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "angelos"
 SYNC_STATE_FILE = STATE_DIR / "upstream-sync-state.json"
 
@@ -62,8 +65,15 @@ def get_fork_remote():
 
 def fetch_upstream():
     # Fetch from upstream MixaDoDs repo regardless of remote naming
-    run(["git", "fetch", "https://github.com/MixaDoDs/AngelOS-Dotfiles.git", "main:refs/remotes/origin/main", "Eben:refs/remotes/origin/Eben"])
-    res = run(["git", "rev-parse", "origin/main"])
+    # Upstream gets refs of its own (UPSTREAM_REF): `origin` may point at the fork too, and a plain
+    # `git fetch origin` then overwrote origin/main with the fork's head — the upstream fetch into it
+    # was rejected as non-fast-forward and every run reported "up to date" with the fork's sha.
+    url = f"https://github.com/{UPSTREAM_REPO}.git"
+    specs = [f"+{b}:refs/remotes/upstream/{b}" for b in UPSTREAM_BRANCHES]
+    res = run(["git", "fetch", "--no-tags", url] + specs)
+    if res.returncode != 0:
+        raise RuntimeError(f"upstream fetch failed: {res.stderr.strip()[-300:]}")
+    res = run(["git", "rev-parse", UPSTREAM_REF], check=True)
     return res.stdout.strip()
 
 
@@ -352,7 +362,120 @@ def inject_local_extensions(target_repo):
             qml_file.write_text(qml_text)
 
 
+# ---- VRAM saver (Ubuntu port) -------------------------------------------------------------
+# On a hybrid machine (NVIDIA dGPU + Intel/AMD iGPU) Quickshell draws the whole shell on the NVIDIA
+# card: every layer surface (wallpaper, desktop, bar, halo) keeps its swapchain and textures in
+# VRAM (150–225 MiB measured on a 6 GB laptop card). Mesa on the iGPU draws the same windows with
+# no VRAM at all; niri imports them as dma-bufs. Apps and games started from the shell get the
+# original environment back (Shell.childEnv / session-env.py), so they stay on the dGPU.
+# Nothing is machine-specific: the iGPU is found in sysfs at every shell start; without NVIDIA,
+# without an iGPU, without Mesa's EGL vendor file or with the Vulkan renderer nothing changes.
+# Opt-in: ~/.config/angelos/gpu = igpu (default dgpu) — window-mirroring widgets (screencopy of
+# dGPU buffers) come out garbled on the iGPU (seen 2026-11-22), so it is never on by default. Applied after every upstream merge;
+# idempotent (VRAM_MARK), and a moved anchor is only reported, never guessed.
+VRAM_MARK = "angelos-vram-saver"
+
+VRAM_LAUNCHER_ANCHOR = '  case "$mode" in\n'
+VRAM_LAUNCHER_BLOCK = '''  # angelos-vram-saver (scripts/upstream-sync/sync.py): on a hybrid machine (NVIDIA + Intel/AMD
+  # iGPU) the shell itself draws on the iGPU through Mesa, the NVIDIA card's memory stays for games
+  # and CUDA. Opt-in, ~/.config/angelos/gpu: igpu | dgpu (default): widgets that mirror windows
+  # (screencopy of dGPU buffers) come out garbled on the iGPU. Apps get the originals back (Shell.childEnv).
+  gpu="$(cat "$CONF_DIR/gpu" 2>/dev/null | tr -cd 'a-z')"
+  igpu=""
+  egl_mesa=""
+  for f in /usr/share/glvnd/egl_vendor.d/50_mesa.json /etc/glvnd/egl_vendor.d/50_mesa.json; do
+    [ -f "$f" ] && egl_mesa="$f" && break
+  done
+  if [ "$gpu" = igpu ] && [ "$mode" != vulkan ] && [ -n "$egl_mesa" ] && [ -e /proc/driver/nvidia/version ]; then
+    for d in /sys/class/drm/renderD*; do
+      case "$(cat "$d/device/vendor" 2>/dev/null)" in
+        0x8086|0x1002) igpu="$(basename "$(readlink -f "$d/device")")"; break ;;
+      esac
+    done
+  fi
+  if [ -n "$igpu" ]; then
+    export ANGELOS_PRE___EGL_VENDOR_LIBRARY_FILENAMES="${__EGL_VENDOR_LIBRARY_FILENAMES:-}" ANGELOS_PRE_DRI_PRIME="${DRI_PRIME:-}"
+    export __EGL_VENDOR_LIBRARY_FILENAMES="$egl_mesa"
+    export DRI_PRIME="pci-$(printf %s "$igpu" | tr ':.' '__')"
+    mode=opengl   # the patched NVIDIA wayland-egl plugin is not for Mesa
+  fi
+'''
+
+VRAM_CHILDENV_ANCHOR = '        e.ANGELOS_PRE_QSG_RHI_BACKEND = null;\n'
+VRAM_CHILDENV_BLOCK = '''        // angelos-vram-saver: the shell's own iGPU choice (bin/angelos) never reaches an app
+        for (const k of ["__EGL_VENDOR_LIBRARY_FILENAMES", "DRI_PRIME"]) {
+            if (Quickshell.env("ANGELOS_PRE_" + k) != null)
+                e[k] = _pre(k);
+            e["ANGELOS_PRE_" + k] = null;
+        }
+'''
+
+VRAM_SESSIONENV_ANCHOR = '"MALLOC_CONF"):'
+VRAM_SESSIONENV_NEW = '"MALLOC_CONF", "__EGL_VENDOR_LIBRARY_FILENAMES", "DRI_PRIME"):  # angelos-vram-saver'
+
+
+def apply_vram_saver(root):
+    """Patch the quickshell config under `root` (a repo checkout or $HOME). Returns changed paths."""
+    qs = Path(root) / ".config/quickshell/angelos"
+    changed, missing = [], []
+    if not qs.is_dir():
+        return changed
+
+    def patch(rel, transform):
+        f = qs / rel
+        if not f.exists():
+            missing.append(rel)
+            return
+        text = f.read_text()
+        if VRAM_MARK in text:
+            return
+        new = transform(text)
+        if new is None:
+            missing.append(rel)
+            return
+        f.write_text(new)
+        changed.append(f)
+
+    def once(anchor, repl):
+        return lambda t: t.replace(anchor, repl, 1) if t.count(anchor) == 1 else None
+
+    patch("bin/angelos", once(VRAM_LAUNCHER_ANCHOR, VRAM_LAUNCHER_BLOCK + VRAM_LAUNCHER_ANCHOR))
+    patch("services/Shell.qml", once(VRAM_CHILDENV_ANCHOR, VRAM_CHILDENV_ANCHOR + VRAM_CHILDENV_BLOCK))
+    patch("scripts/session-env.py", once(VRAM_SESSIONENV_ANCHOR, VRAM_SESSIONENV_NEW))
+
+    # the launcher must keep working: a broken sh script means no shell at all
+    launcher = qs / "bin/angelos"
+    if launcher in changed and run(["sh", "-n", str(launcher)]).returncode != 0:
+        raise RuntimeError(f"vram-saver: {launcher} fails sh -n after patching")
+    if missing:
+        print(f"[upstream-sync] vram-saver: anchors moved in {', '.join(missing)} under {root}; "
+              "not patched — needs an agent")
+        notify("angelOS: VRAM-патч не применён",
+               "Upstream изменил " + ", ".join(missing) + ". Напиши агенту, чтобы обновить apply_vram_saver.")
+    for f in changed:
+        print(f"[upstream-sync] vram-saver: patched {f}")
+    return changed
+
+
+def resolve_fork_owned(cwd):
+    """After a conflicted merge: keep the fork's side of FORK_OWNED files. True when nothing else conflicts."""
+    conflicted = run(["git", "diff", "--name-only", "--diff-filter=U"], cwd=cwd).stdout.split()
+    if not conflicted or not set(conflicted) <= FORK_OWNED:
+        return False
+    for f in conflicted:
+        run(["git", "checkout", "--ours", "--", f], cwd=cwd, check=True)
+        run(["git", "add", "--", f], cwd=cwd, check=True)
+    print(f"[upstream-sync] kept the fork's {', '.join(conflicted)}")
+    return True
+
+
 def sync():
+    # the live config keeps the patch even when upstream has nothing new (idempotent)
+    try:
+        apply_vram_saver(Path.home())
+    except Exception as e:
+        print(f"[upstream-sync] vram-saver on $HOME failed: {e}")
+
     has_new, upstream_sha, commits = check_upstream_api()
     if not has_new:
         print("[upstream-sync] Upstream is up to date:", upstream_sha[:8])
@@ -376,13 +499,20 @@ def sync():
         run(["git", "worktree", "add", "-B", EXPERIMENTAL_BRANCH, str(worktree_dir), f"{fork_remote}/{EXPERIMENTAL_BRANCH}"], check=True)
         
         # Merge upstream changes
-        merge_res = run(["git", "merge", "--no-commit", "--no-ff", "origin/main"], cwd=worktree_dir)
-        if merge_res.returncode != 0:
+        merge_res = run(["git", "merge", "--no-commit", "--no-ff", UPSTREAM_REF], cwd=worktree_dir)
+        if merge_res.returncode != 0 and not resolve_fork_owned(worktree_dir):
             print("[upstream-sync] Merge conflicts encountered. Experimental branch requires manual agent inspection.")
             run(["git", "merge", "--abort"], cwd=worktree_dir)
             msg = f"Вышло новое обновление upstream angelOS ({len(commits)} коммитов), но есть конфликты слияния. Напиши агенту для проверки!"
             notify("angelOS Upstream: Конфликты обновления", msg, urgency="critical")
             return 1
+
+        # Ubuntu port adaptation: the shell's VRAM saver goes into the merge (validated below)
+        try:
+            for f in apply_vram_saver(worktree_dir):
+                run(["git", "add", str(f)], cwd=worktree_dir)
+        except Exception as e:
+            print(f"[upstream-sync] vram-saver in experimental failed: {e}")
 
         # Check validation in worktree
         ok, reason = validate_experimental(worktree_dir)
@@ -400,8 +530,15 @@ def sync():
                 try:
                     # Switch to main and merge upstream
                     run(["git", "checkout", "main"], check=True)
-                    m_res = run(["git", "merge", "--no-ff", "-m", f"Merge upstream {upstream_sha[:8]}: auto-sync\n\n" + "\n".join(commits), "origin/main"])
+                    m_res = run(["git", "merge", "--no-ff", "-m", f"Merge upstream {upstream_sha[:8]}: auto-sync\n\n" + "\n".join(commits), UPSTREAM_REF])
+                    if m_res.returncode != 0 and resolve_fork_owned(REPO_DIR):
+                        m_res = run(["git", "commit", "--no-edit"])
                     if m_res.returncode == 0:
+                        # the VRAM saver into the port's main as well (no-op when already there)
+                        vram_files = apply_vram_saver(REPO_DIR)
+                        if vram_files:
+                            run(["git", "add"] + [str(f) for f in vram_files], check=True)
+                            run(["git", "commit", "-m", "perf(vram): shell draws on the iGPU on hybrid machines (auto-sync)"], check=True)
                         # Also sync into Eben
                         run(["git", "checkout", "Eben"], check=True)
                         run(["git", "merge", "--ff-only", "main"], check=True)
@@ -423,6 +560,7 @@ def sync():
             if auto_merged_main:
                 # Apply local extensions to workspace if agy is present
                 inject_local_extensions(Path.home())
+                apply_vram_saver(Path.home())
                 msg = f"Обновление angelOS ({len(commits)} коммитов) успешно протестировано и влито в main и Eben!"
                 notify("angelOS: Обновление применено", msg)
             else:
@@ -449,5 +587,9 @@ if __name__ == "__main__":
             notify("angelOS Upstream", state["pending_notification"])
             state["pending_notification"] = ""
             save_state(state)
+        sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "--vram-saver":
+        # apply now: `sync.py --vram-saver [root]` (default $HOME)
+        apply_vram_saver(Path(sys.argv[2]).expanduser() if len(sys.argv) > 2 else Path.home())
         sys.exit(0)
     sys.exit(sync())
