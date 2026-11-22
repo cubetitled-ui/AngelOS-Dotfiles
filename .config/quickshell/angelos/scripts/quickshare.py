@@ -644,6 +644,17 @@ KDC_ROOT = "/modules/kdeconnect"
 KDC_SIGNAL = re.compile(r"^(/modules/kdeconnect\S*): \S+\.(\w+) \((.*)\)\s*$")
 
 
+def kdc_installed():
+    # its D-Bus service file (native, Flatpak and Snap exports are on XDG_DATA_DIRS), or the CLI
+    dirs = [os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")]
+    dirs += (os.environ.get("XDG_DATA_DIRS") or "/usr/local/share:/usr/share").split(":")
+    for d in dirs:
+        if d and os.path.exists(os.path.join(d, "dbus-1", "services", KDC + ".service")):
+            return True
+    import shutil
+    return bool(shutil.which("kdeconnect-cli") or shutil.which("kdeconnectd"))
+
+
 class Kdc:
     def __init__(self):
         self.state = ""          # ok | missing (no daemon on the bus, not installed)
@@ -839,7 +850,11 @@ def main():
             args[a[2:]] = next(it, "")
     S = State(args)
     why = serve()
-    if args.get("kdeconnect") == "1":
+    if args.get("kdeconnect") == "1" and not kdc_installed():
+        # no KDE Connect here: say so once instead of a gdbus monitor and a query every 30 s
+        K = Kdc()
+        kdc_status("missing", "KDE Connect is not installed")
+    elif args.get("kdeconnect") == "1":
         K = Kdc()
         for fn in (kdc_keep, kdc_watch):
             threading.Thread(target=fn, daemon=True).start()

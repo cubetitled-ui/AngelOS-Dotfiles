@@ -64,9 +64,25 @@ Singleton {
 
     // why Discord fell, as a notification (scripts/discord-crash-watch.py): sharing the screen
     // with sound it dies when an app's audio stream goes away (2026-10-21), and an update of
-    // Discord or another app can bring that back
+    // Discord or another app can bring that back.
+    // Only while Discord runs (and a minute after, for the coredump of its fall): no Python
+    // process plus `journalctl -f` in memory for people who don't use Discord
+    property int discordGone: 99              // 10 s probes in a row without Discord
     Process {
+        id: discordProbe
+        command: ["pgrep", "-x", "Discord|DiscordPTB|DiscordCanary"]
+        onExited: code => root.discordGone = code === 0 ? 0 : Math.min(99, root.discordGone + 1)
+    }
+    Timer {
+        interval: 10000
         running: Config.ready && Quickshell.env("ANGELOS_TEST") !== "1" && !Shell.dev
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: if (!discordProbe.running)
+            discordProbe.running = true
+    }
+    Process {
+        running: Config.ready && Quickshell.env("ANGELOS_TEST") !== "1" && !Shell.dev && root.discordGone < 6
         command: ["python3", Quickshell.shellDir + "/scripts/discord-crash-watch.py"]
         stdout: SplitParser {
             onRead: line => {
